@@ -61,8 +61,12 @@ export default function MapView({ onLocationSelect }: MapViewProps) {
               {/* Location Markers */}
               {mockLocations.map((location, idx) => {
                 // Convert lat/lng to SVG coordinates
-                const x = ((location.lng + 74) * 50) % 400
-                const y = ((41 - location.lat) * 50) % 300
+                // NYC bounding box: lat ~40.7-40.8, lng ~-74.0 to -73.95
+                const minLat = 40.70, maxLat = 40.80
+                const minLng = -74.0, maxLng = -73.95
+                
+                const x = ((location.lng - minLng) / (maxLng - minLng)) * 340 + 30
+                const y = ((maxLat - location.lat) / (maxLat - minLat)) * 200 + 30
 
                 return (
                   <g key={location.name}>
@@ -100,23 +104,34 @@ export default function MapView({ onLocationSelect }: MapViewProps) {
                     {selectedLocation === location.name && (
                       <g>
                         <rect
-                          x={x - 30}
-                          y={y - 35}
-                          width="60"
-                          height="24"
+                          x={x - 50}
+                          y={y - 48}
+                          width="100"
+                          height="40"
                           fill="#1F2937"
                           stroke="#FBBF24"
-                          rx="4"
+                          strokeWidth="1.5"
+                          rx="6"
                         />
                         <text
                           x={x}
-                          y={y - 17}
+                          y={y - 30}
+                          textAnchor="middle"
+                          fontSize="11"
+                          fill="#FCD34D"
+                          className="font-bold"
+                        >
+                          {location.name}
+                        </text>
+                        <text
+                          x={x}
+                          y={y - 16}
                           textAnchor="middle"
                           fontSize="10"
-                          fill="#FBBF24"
+                          fill="#D1D5DB"
                           className="font-semibold"
                         >
-                          {location.comfort}%
+                          Comfort: {location.comfort}%
                         </text>
                       </g>
                     )}
