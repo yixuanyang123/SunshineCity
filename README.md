@@ -20,13 +20,20 @@ Sunshine City 是一个用于评估城市步行与骑行舒适度的前端演示
 
 ## 🛠 技术栈
 
-- **框架** - Next.js 14 + React 18
-- **语言** - TypeScript
-- **样式** - Tailwind CSS
-- **图表** - Recharts
-- **图标** - Lucide React
-- **可视化** - Three.js（支持）
-- **地图** - Mapbox GL（集成就绪）
+- **前端**: Next.js 14 + React 18 (TypeScript)
+- **样式**: Tailwind CSS
+- **图表**: Recharts
+- **图标**: Lucide React
+- **可视化**: Three.js（支持）
+- **地图**: Mapbox GL（集成就绪）
+
+**后端（演示）**:
+- **API 框架**: FastAPI (Python)
+- **数据库**: PostgreSQL (asyncpg)
+- **认证**: JWT (python-jose) + pbkdf2_sha256 (passlib)
+- **异步 ORM**: SQLAlchemy 2.0+ (async)
+
+> 本仓库附带一个轻量后端在 `/server`，用于本地演示用户注册、登录与会话（FastAPI + PostgreSQL）。详细设置和 API 文档见 `server/README.md`。
 
 ## 📦 安装与运行
 
@@ -122,7 +129,7 @@ src/
 3. 导入并在Dashboard中使用
 
 ### 修改样式
-- 编辑 `tailwind.config.ts` 自定义主题颜色
+- 编辑 `tailwind.conig.ts` 自定义主题颜色
 - 使用Tailwind CSS类进行样式设置
 - 全局样式在 `src/app/globals.css`
 
