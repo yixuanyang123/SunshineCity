@@ -14,11 +14,12 @@ export default function Dashboard() {
     lng: number
     name: string
   } | null>(null)
+  const [selectedCity, setSelectedCity] = useState<string>('Manhattan')
 
   return (
     <div className="flex flex-col w-full h-screen bg-gradient-to-br from-gray-900 via-secondary to-dark">
       {/* Header */}
-      <Header />
+      <Header selectedCity={selectedCity} setSelectedCity={setSelectedCity} />
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
@@ -27,7 +28,7 @@ export default function Dashboard() {
 
         {/* Map/Content Area */}
         <div className="flex-1 relative">
-          {activeTab === 'map' && <MapView onLocationSelect={setSelectedLocation} />}
+          {activeTab === 'map' && <MapView onLocationSelect={setSelectedLocation} selectedCity={selectedCity} />}
           {activeTab === '3d' && (
             <div className="w-full h-full bg-dark flex items-center justify-center">
               <div className="text-center text-gray-400">

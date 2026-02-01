@@ -5,18 +5,58 @@ import { MapPin, Navigation } from 'lucide-react'
 
 interface MapViewProps {
   onLocationSelect: (location: { lat: number; lng: number; name: string }) => void
+  selectedCity?: string
 }
 
-// Mock GeoJSON data for city locations
-const mockLocations = [
-  { name: 'Central Park', lat: 40.785, lng: -73.968, comfort: 85 },
-  { name: 'Downtown Plaza', lat: 40.758, lng: -73.985, comfort: 72 },
-  { name: 'Riverside Walk', lat: 40.791, lng: -73.972, comfort: 92 },
-  { name: 'Market District', lat: 40.745, lng: -73.99, comfort: 65 },
-  { name: 'Tech Hub', lat: 40.768, lng: -73.98, comfort: 78 },
-]
+const CITY_DATA: Record<
+  string,
+  { locations: { name: string; lat: number; lng: number; comfort: number }[]; bbox: { minLat: number; maxLat: number; minLng: number; maxLng: number } }
+> = {
+  Manhattan: {
+    locations: [
+      { name: 'Central Park', lat: 40.785, lng: -73.968, comfort: 85 },
+      { name: 'Downtown Plaza', lat: 40.758, lng: -73.985, comfort: 72 },
+      { name: 'Riverside Walk', lat: 40.791, lng: -73.972, comfort: 92 },
+      { name: 'Market District', lat: 40.745, lng: -73.99, comfort: 65 },
+      { name: 'Tech Hub', lat: 40.768, lng: -73.98, comfort: 78 },
+    ],
+    bbox: { minLat: 40.70, maxLat: 40.80, minLng: -74.0, maxLng: -73.95 },
+  },
+  'Los Angeles': {
+    locations: [
+      { name: 'Griffith Park', lat: 34.136, lng: -118.294, comfort: 78 },
+      { name: 'Santa Monica Pier', lat: 34.009, lng: -118.497, comfort: 82 },
+      { name: 'Downtown LA', lat: 34.040, lng: -118.246, comfort: 68 },
+    ],
+    bbox: { minLat: 33.9, maxLat: 34.3, minLng: -118.6, maxLng: -118.1 },
+  },
+  Boston: {
+    locations: [
+      { name: 'Boston Common', lat: 42.355, lng: -71.065, comfort: 80 },
+      { name: 'Cambridge Square', lat: 42.373, lng: -71.119, comfort: 74 },
+    ],
+    bbox: { minLat: 42.34, maxLat: 42.38, minLng: -71.14, maxLng: -71.05 },
+  },
+  Miami: {
+    locations: [
+      { name: 'South Beach', lat: 25.790, lng: -80.130, comfort: 86 },
+      { name: 'Downtown Miami', lat: 25.774, lng: -80.193, comfort: 70 },
+    ],
+    bbox: { minLat: 25.72, maxLat: 25.82, minLng: -80.25, maxLng: -80.05 },
+  },
+  'San Diego': {
+    locations: [
+      { name: 'Balboa Park', lat: 32.734, lng: -117.144, comfort: 84 },
+      { name: 'Gaslamp Quarter', lat: 32.711, lng: -117.161, comfort: 73 },
+    ],
+    bbox: { minLat: 32.70, maxLat: 32.75, minLng: -117.20, maxLng: -117.12 },
+  },
+}
 
-export default function MapView({ onLocationSelect }: MapViewProps) {
+export default function MapView({ onLocationSelect, selectedCity = 'Manhattan' }: MapViewProps) {
+  const cityInfo = CITY_DATA[selectedCity] || CITY_DATA['Manhattan']
+  const mockLocations = cityInfo.locations
+  const { minLat, maxLat, minLng, maxLng } = cityInfo.bbox
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
 
   const handleLocationClick = (location: (typeof mockLocations)[0]) => {
@@ -60,11 +100,7 @@ export default function MapView({ onLocationSelect }: MapViewProps) {
 
               {/* Location Markers */}
               {mockLocations.map((location, idx) => {
-                // Convert lat/lng to SVG coordinates
-                // NYC bounding box: lat ~40.7-40.8, lng ~-74.0 to -73.95
-                const minLat = 40.70, maxLat = 40.80
-                const minLng = -74.0, maxLng = -73.95
-                
+                // Convert lat/lng to SVG coordinates using city bbox
                 const x = ((location.lng - minLng) / (maxLng - minLng)) * 340 + 30
                 const y = ((maxLat - location.lat) / (maxLat - minLat)) * 200 + 30
 
