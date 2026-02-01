@@ -1,6 +1,6 @@
 # Sunshine City - Urban Comfort Analysis Platform
 
-一个现代化的城市行交通舒适度评估平台，用于分析步行和骑行路线的舒适度。
+Sunshine City 是一个用于评估城市步行与骑行舒适度的前端演示平台。适合用于演示数据可视化、交互地图和实时指标展示。
 
 ## 🌟 功能特性
 
@@ -129,15 +129,3 @@ src/
 1. 创建 `src/lib/api.ts` 处理API调用
 2. 使用 `useEffect` 在组件中获取数据
 3. 更新状态管理逻辑
-
-## 🔒 许可证
-
-MIT License - 详见LICENSE文件
-
-## 👥 贡献
-
-欢迎提交Issue和Pull Request！
-
----
-
-**Sunshine City Stage 3** - 城市行交通舒适度评估研究平台
