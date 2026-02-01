@@ -17,8 +17,8 @@ export default function Header({ selectedCity = 'Manhattan', setSelectedCity }: 
     <header className="bg-gradient-to-r from-dark via-secondary to-dark border-b border-yellow-500/20 px-8 py-4 shadow-2xl">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-lg">
-            <Sun className="w-8 h-8 text-dark" />
+          <div className="p-1 bg-transparent rounded-lg overflow-hidden">
+            <img src="/logo.png" alt="AEXUS" className="w-20 h-20 object-cover" />
           </div>
           <div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-500 bg-clip-text text-transparent">
