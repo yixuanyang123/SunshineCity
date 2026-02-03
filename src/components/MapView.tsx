@@ -526,101 +526,139 @@ export default function MapView({
                   fillColor = '#EF4444'
                 }
 
+                const labelStack: Array<{
+                  id: string
+                  width: number
+                  height: number
+                  fill: string
+                  stroke?: string
+                  title: string
+                  subtitle?: string
+                  titleColor: string
+                  subtitleColor?: string
+                  titleSize: number
+                  subtitleSize?: number
+                }> = []
+
+                if (isStartPoint) {
+                  labelStack.push({
+                    id: 'start',
+                    width: 70,
+                    height: 30,
+                    fill: '#10B981',
+                    title: 'START',
+                    subtitle: location.name,
+                    titleColor: '#FFFFFF',
+                    subtitleColor: '#FFFFFF',
+                    titleSize: 11,
+                    subtitleSize: 9,
+                  })
+                }
+
+                if (isEndPoint) {
+                  // End point uses pin-only styling (no label) to reduce clutter
+                }
+
+                if (isSelected) {
+                  labelStack.push({
+                    id: 'info',
+                    width: 110,
+                    height: 40,
+                    fill: '#1F2937',
+                    stroke: '#FBBF24',
+                    title: location.name,
+                    subtitle: `Comfort: ${location.comfort}%`,
+                    titleColor: '#FCD34D',
+                    subtitleColor: '#D1D5DB',
+                    titleSize: 11,
+                    subtitleSize: 10,
+                  })
+                }
+
                 return (
                   <g key={location.name}>
-                    {/* Pulsing Circle */}
-                    <circle
-                      cx={x}
-                      cy={y}
-                      r={isStartPoint || isEndPoint ? "16" : "12"}
-                      fill="none"
-                      stroke={markerColor}
-                      strokeWidth={isStartPoint || isEndPoint ? "3" : "2"}
-                      opacity={isSelected || isStartPoint || isEndPoint ? 1 : 0.5}
-                      className={isStartPoint || isEndPoint ? "animate-pulse" : ""}
-                    />
-
-                    {/* Center Dot */}
-                    <circle
-                      cx={x}
-                      cy={y}
-                      r={isStartPoint || isEndPoint ? "6" : "4"}
-                      fill={fillColor}
-                      className={`cursor-pointer transition-all ${
-                        selectionMode ? 'hover:r-8' : 'hover:r-6'
-                      }`}
-                      onClick={() => handleLocationClick(location)}
-                    />
-
-                    {/* Start/End Point Labels */}
-                    {(isStartPoint || isEndPoint) && (
-                      <g>
-                        <rect
-                          x={x - 35}
-                          y={y - 45}
-                          width="70"
-                          height="30"
-                          fill={isStartPoint ? '#10B981' : '#EF4444'}
-                          rx="6"
+                    {/* End point pin */}
+                    {isEndPoint ? (
+                      <g onClick={() => handleLocationClick(location)} className="cursor-pointer">
+                        <path
+                          transform={`translate(${x},${y})`}
+                          d="M 0 -16 C -6 -16 -10 -12 -10 -6 C -10 2 0 14 0 14 C 0 14 10 2 10 -6 C 10 -12 6 -16 0 -16 Z"
+                          fill="#EF4444"
+                          stroke="#FFFFFF"
+                          strokeWidth="1"
                         />
-                        <text
-                          x={x}
-                          y={y - 30}
-                          textAnchor="middle"
-                          fontSize="11"
-                          fill="white"
-                          className="font-bold"
-                        >
-                          {isStartPoint ? 'START' : 'END'}
-                        </text>
-                        <text
-                          x={x}
-                          y={y - 16}
-                          textAnchor="middle"
-                          fontSize="9"
-                          fill="white"
-                          className="font-semibold"
-                        >
-                          {location.name}
-                        </text>
+                        <circle cx={x} cy={y - 6} r="3" fill="#FFFFFF" />
                       </g>
+                    ) : (
+                      <>
+                        {/* Pulsing Circle */}
+                        <circle
+                          cx={x}
+                          cy={y}
+                          r={isStartPoint ? "16" : "12"}
+                          fill="none"
+                          stroke={markerColor}
+                          strokeWidth={isStartPoint ? "3" : "2"}
+                          opacity={isSelected || isStartPoint ? 1 : 0.5}
+                          className={isStartPoint ? "animate-pulse" : ""}
+                        />
+
+                        {/* Center Dot */}
+                        <circle
+                          cx={x}
+                          cy={y}
+                          r={isStartPoint ? "6" : "4"}
+                          fill={fillColor}
+                          className={`cursor-pointer transition-all ${
+                            selectionMode ? 'hover:r-8' : 'hover:r-6'
+                          }`}
+                          onClick={() => handleLocationClick(location)}
+                        />
+                      </>
                     )}
 
-                    {/* Regular Label for selected location (not start/end) */}
-                    {isSelected && !isStartPoint && !isEndPoint && (
-                      <g>
-                        <rect
-                          x={x - 50}
-                          y={y - 48}
-                          width="100"
-                          height="40"
-                          fill="#1F2937"
-                          stroke="#FBBF24"
-                          strokeWidth="1.5"
-                          rx="6"
-                        />
-                        <text
-                          x={x}
-                          y={y - 30}
-                          textAnchor="middle"
-                          fontSize="11"
-                          fill="#FCD34D"
-                          className="font-bold"
-                        >
-                          {location.name}
-                        </text>
-                        <text
-                          x={x}
-                          y={y - 16}
-                          textAnchor="middle"
-                          fontSize="10"
-                          fill="#D1D5DB"
-                          className="font-semibold"
-                        >
-                          Comfort: {location.comfort}%
-                        </text>
-                      </g>
-                    )}
+                    {/* Stacked Labels to avoid overlap */}
+                    {labelStack.map((label, index) => {
+                      const labelBottom = y - 18 - index * (label.height + 6)
+                      const rectY = labelBottom - label.height
+                      const rectX = x - label.width / 2
+                      return (
+                        <g key={`${location.name}-${label.id}`}>
+                          <rect
+                            x={rectX}
+                            y={rectY}
+                            width={label.width}
+                            height={label.height}
+                            fill={label.fill}
+                            stroke={label.stroke}
+                            strokeWidth={label.stroke ? 1.5 : 0}
+                            rx="6"
+                          />
+                          <text
+                            x={x}
+                            y={rectY + 12}
+                            textAnchor="middle"
+                            fontSize={label.titleSize}
+                            fill={label.titleColor}
+                            className="font-bold"
+                          >
+                            {label.title}
+                          </text>
+                          {label.subtitle && (
+                            <text
+                              x={x}
+                              y={rectY + (label.subtitleSize ? 24 : 22)}
+                              textAnchor="middle"
+                              fontSize={label.subtitleSize ?? 9}
+                              fill={label.subtitleColor ?? '#FFFFFF'}
+                              className="font-semibold"
+                            >
+                              {label.subtitle}
+                            </text>
+                          )}
+                        </g>
+                      )
+                    })}
                   </g>
                 )
               })}
@@ -672,34 +710,15 @@ export default function MapView({
                   const y = ((maxLat - endPoint.lat) / (maxLat - minLat)) * 200 + 30
                   return (
                     <g>
-                      <circle
-                        cx={x}
-                        cy={y}
-                        r="16"
-                        fill="none"
-                        stroke="#EF4444"
-                        strokeWidth="3"
+                      <path
+                        transform={`translate(${x},${y})`}
+                        d="M 0 -16 C -6 -16 -10 -12 -10 -6 C -10 2 0 14 0 14 C 0 14 10 2 10 -6 C 10 -12 6 -16 0 -16 Z"
+                        fill="#EF4444"
+                        stroke="#FFFFFF"
+                        strokeWidth="1"
                         className="animate-pulse"
                       />
-                      <circle cx={x} cy={y} r="6" fill="#EF4444" />
-                      <rect
-                        x={x - 35}
-                        y={y - 45}
-                        width="70"
-                        height="24"
-                        fill="#EF4444"
-                        rx="6"
-                      />
-                      <text
-                        x={x}
-                        y={y - 27}
-                        textAnchor="middle"
-                        fontSize="11"
-                        fill="white"
-                        className="font-bold"
-                      >
-                        END
-                      </text>
+                      <circle cx={x} cy={y - 6} r="3" fill="#FFFFFF" />
                     </g>
                   )
                 })()
