@@ -1,18 +1,11 @@
 'use client'
 
-import { Sun, User, ChevronDown } from 'lucide-react'
+import { User, ChevronDown } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import AccountModal from './AccountModal'
 import ProfileModal from './ProfileModal'
 
-interface HeaderProps {
-  selectedCity?: string
-  setSelectedCity?: (c: string) => void
-}
-
-const CITY_OPTIONS = ['Manhattan', 'Los Angeles', 'Boston', 'Miami', 'San Diego']
-
-export default function Header({ selectedCity = 'Manhattan', setSelectedCity }: HeaderProps) {
+export default function Header() {
   const [accountOpen, setAccountOpen] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
@@ -59,21 +52,6 @@ export default function Header({ selectedCity = 'Manhattan', setSelectedCity }: 
         </div>
 
         <div className="flex items-center gap-4">
-          {/* City selector */}
-          <div className="bg-gray-800 p-2 rounded-lg border border-gray-700">
-            <select
-              value={selectedCity}
-              onChange={(e) => setSelectedCity && setSelectedCity(e.target.value)}
-              className="bg-transparent text-sm text-gray-200 outline-none"
-            >
-              {CITY_OPTIONS.map((c) => (
-                <option key={c} value={c} className="text-black">
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
-
           {/* Account menu */}
           <div className="relative">
             {/* anchor ref used by portal to position dropdown */}

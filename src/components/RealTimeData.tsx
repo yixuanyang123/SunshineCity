@@ -1,34 +1,41 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Cloud, Droplets, Wind } from 'lucide-react'
+import { useState } from 'react'
+import { Droplets, Wind, ChevronUp, ChevronDown } from 'lucide-react'
 
-export default function RealTimeData() {
-  const [data, setData] = useState({
-    temperature: 24,
-    humidity: 65,
-    windSpeed: 8,
-    uvIndex: 7,
-  })
+interface RealTimeDataProps {
+  data: {
+    temperature: number
+    humidity: number
+    windSpeed: number
+    uvIndex: number
+  }
+}
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setData((prev) => ({
-        temperature: prev.temperature + (Math.random() - 0.5) * 2,
-        humidity: Math.max(30, Math.min(90, prev.humidity + (Math.random() - 0.5) * 4)),
-        windSpeed: Math.max(0, prev.windSpeed + (Math.random() - 0.5) * 1),
-        uvIndex: Math.max(0, Math.min(11, prev.uvIndex + (Math.random() - 0.5) * 0.5)),
-      }))
-    }, 10000)
-
-    return () => clearInterval(interval)
-  }, [])
+export default function RealTimeData({ data }: RealTimeDataProps) {
+  const [isVisible, setIsVisible] = useState(true)
 
   return (
-    <div className="absolute bottom-6 right-6 bg-gray-900/95 backdrop-blur-sm border border-yellow-500/30 rounded-lg p-4 w-80 shadow-2xl">
-      <h4 className="font-semibold text-yellow-400 mb-4 text-sm">Real-Time Environmental Factors</h4>
+    <div className="absolute bottom-6 right-6 bg-gray-900/95 backdrop-blur-sm border border-yellow-500/30 rounded-lg shadow-2xl w-80">
+      {/* Header with collapse button */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-700">
+        <h4 className="font-semibold text-yellow-400 text-sm">Real-Time Environmental Factors</h4>
+        <button
+          onClick={() => setIsVisible(!isVisible)}
+          className="p-1 hover:bg-gray-800 rounded transition-colors"
+          aria-label={isVisible ? "Collapse panel" : "Expand panel"}
+        >
+          {isVisible ? (
+            <ChevronDown className="w-4 h-4 text-gray-400" />
+          ) : (
+            <ChevronUp className="w-4 h-4 text-gray-400" />
+          )}
+        </button>
+      </div>
 
-      <div className="space-y-3">
+      {isVisible && (
+        <>
+          <div className="p-4 space-y-3">
         <div className="flex items-center justify-between bg-gray-800 p-3 rounded-lg">
           <span className="text-gray-300 text-sm">Temperature</span>
           <span className="text-yellow-300 font-mono font-semibold">{data.temperature.toFixed(1)}°C</span>
@@ -57,9 +64,11 @@ export default function RealTimeData() {
 
       </div>
 
-      <div className="mt-4 pt-4 border-t border-gray-700">
+      <div className="px-4 pb-4 pt-2 border-t border-gray-700">
         <p className="text-xs text-gray-500">Updates every 10 seconds</p>
       </div>
+        </>
+      )}
     </div>
   )
 }
