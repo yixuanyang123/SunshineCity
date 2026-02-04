@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { MapPin, Navigation, Search, X, ChevronUp, ChevronDown } from 'lucide-react'
+import { MapPin, Navigation, Search, X, ChevronUp, ChevronDown, Clock} from 'lucide-react'
 import { mockRoutePlan, searchLocations } from '@/lib/mockData'
 import { Location } from '@/lib/types'
 
@@ -75,6 +75,8 @@ export default function MapView({
   const { minLat, maxLat, minLng, maxLng } = cityInfo.bbox
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
   const [travelMode, setTravelMode] = useState<'walking' | 'cycling'>('walking')
+  const [hour, setHour] = useState<number>(new Date().getHours());
+  const [minute, setMinute] = useState<number>(Math.round(new Date().getMinutes() / 10) * 10);
   const [routeSummary, setRouteSummary] = useState<{
     distance: number
     duration: number
@@ -178,8 +180,13 @@ export default function MapView({
       onRouteRequest(startPoint, endPoint)
     }
     if (startPoint && endPoint) {
-      const nowIso = new Date().toISOString()
-      const plan = mockRoutePlan(startPoint, endPoint, travelMode, nowIso, 'sun')
+      const departureDate = new Date();
+      departureDate.setHours(hour);
+      departureDate.setMinutes(minute);
+      departureDate.setSeconds(0);
+
+      const nowIso = departureDate.toISOString()
+      const plan = mockRoutePlan(startPoint, endPoint, travelMode, nowIso, lightMode)
       const best = plan.routes[0]
       setRouteSummary({
         distance: best.distance,
@@ -207,6 +214,37 @@ export default function MapView({
     return Math.round(adjusted * 10) / 10
   }
 
+  const getSeason = (date: Date): 'Winter' | 'Spring' | 'Summer' | 'Autumn' => {
+  const month = date.getMonth();
+  if (month >= 2 && month <= 4) return 'Spring';   // March - May
+  if (month >= 5 && month <= 7) return 'Summer';   // June - Aug
+  if (month >= 8 && month <= 10) return 'Autumn';  // Sept - Nov
+  return 'Winter';                                 // Dec - Feb
+  };
+
+const getLightDefault = () => {
+  const season = getSeason(new Date())
+  if (season === 'Spring' || season === 'Winter') {
+    return 'sun'
+  }
+  return 'shade'
+}
+
+  const setStartTimeToNow = () => {
+    const now = new Date()
+    let currentHours = now.getHours();
+    let currentMinutes = Math.round(now.getMinutes() / 10) * 10
+
+    if (currentMinutes === 60) {
+    currentMinutes = 0;
+    currentHours = (currentHours + 1) % 24;
+    }
+
+    setHour(currentHours)
+    setMinute(currentMinutes)
+  }
+  
+  const [lightMode, setLightMode] = useState<'sun' | 'shade'>(getLightDefault())
   const defaultSpeed = getDefaultSpeed()
 
   return (
@@ -247,6 +285,7 @@ export default function MapView({
         {isPanelVisible && (
           <div className="p-3 space-y-2">
             {/* Travel Mode Toggle */}
+
             <div>
               <label className="text-xs text-gray-300 flex items-center gap-2 mb-1">Mode</label>
               <div className="flex gap-2">
@@ -275,6 +314,57 @@ export default function MapView({
                 Default speed: {defaultSpeed} km/h (weather-adjusted)
               </div>
             </div>
+
+            {/* Light/Shade Mode Toggle */}
+            <div>
+              <label className="text-xs text-gray-300 flex items-center gap-2 mb-1">Light preference</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setLightMode('sun')}
+                  className={`flex-1 px-2 py-1.5 rounded text-xs transition-all ${
+                    lightMode === 'sun'
+                      ? 'bg-yellow-500 text-gray-900'
+                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
+                  Prefer Sunlight
+                </button>
+                <button
+                  onClick={() => setLightMode('shade')}
+                  className={`flex-1 px-2 py-1.5 rounded text-xs transition-all ${
+                    lightMode === 'shade'
+                      ? 'bg-yellow-500 text-gray-900'
+                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
+                  Prefer Shade
+                </button>
+              </div>
+              <div className="mt-1 text-[10px] text-gray-400">
+                Default speed: {defaultSpeed} km/h (weather-adjusted)
+              </div>
+            </div>
+
+          {/* Start Time Selection */}
+          <div>
+            <label className="text-xs text-gray-300 flex items-center gap-2 mb-1">
+              <Clock className="w-3 h-3" /> Departure Time
+            </label>
+            <div className="flex items-center gap-2 ">
+              <select value = {hour} onChange={(e) => setHour(parseInt(e.target.value))} className="flex-1 bg-gray-800 text-white text-xs p-1 rounded"> 
+                {Array.from({ length: 24 }, (_, i) => (<option key={i} value={i}>{String(i).padStart(2, '0')}</option>
+                  ))}
+              </select>
+              <span className="text-gray-400">:</span>
+              <select value={minute} onChange={(e) => setMinute(parseInt(e.target.value))} className="flex-1 bg-gray-800 text-white text-xs p-1 rounded">
+                {Array.from({ length: 6 }, (_, i) => (<option key={i} value={i * 10}>{String(i * 10).padStart(2, '0')}</option>
+                  ))}
+              </select>
+              <button onClick={setStartTimeToNow} className="ml-2 px-2 py-1.5 bg-gray-700 text-gray-300 text-xs rounded hover:bg-gray-600 transition-all">Set to Current Time</button>
+              </div>
+
+          </div>
+
           {/* Start Point Selection */}
           <div>
             <label className="text-xs text-gray-300 flex items-center gap-2 mb-1">
