@@ -341,7 +341,7 @@ const getLightDefault = () => {
                 </button>
               </div>
               <div className="mt-1 text-[10px] text-gray-400">
-                Default speed: {defaultSpeed} km/h (weather-adjusted)
+                Default is {lightMode === 'sun' ? 'sunlight' : 'shade'} for {lightMode === 'sun' ? 'Spring/Winter' : 'Summer/Autumn'}
               </div>
             </div>
 
