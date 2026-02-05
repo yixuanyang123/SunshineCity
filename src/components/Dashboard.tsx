@@ -70,7 +70,7 @@ export default function Dashboard() {
           )}
 
           {/* Real-time Data Panel - Only show on map and 3d */}
-          {(activeTab === 'map' || activeTab === '3d') && <RealTimeData data={weather} />}
+          {(activeTab === 'map' || activeTab === '3d') && <RealTimeData data={weather} selectedCity={selectedCity} />}
         </div>
       </div>
     </div>
