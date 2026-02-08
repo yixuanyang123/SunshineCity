@@ -6,6 +6,7 @@ import Sidebar from './Sidebar'
 import MapView from './MapView'
 import DataPanel from './DataPanel'
 import RealTimeData from './RealTimeData'
+import { CITY_COORDS } from '@/lib/cityData'
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<'map' | 'analysis' | '3d'>('map')
@@ -16,24 +17,56 @@ export default function Dashboard() {
   } | null>(null)
   const [selectedCity, setSelectedCity] = useState<string>('Manhattan')
   const [weather, setWeather] = useState({
-    temperature: 24,
-    humidity: 65,
-    windSpeed: 8,
-    uvIndex: 7,
+    temperature: 0,
+    humidity: 0,
+    windSpeed: 0,
+    uvIndex: 0,
   })
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setWeather((prev) => ({
-        temperature: prev.temperature + (Math.random() - 0.5) * 2,
-        humidity: Math.max(30, Math.min(90, prev.humidity + (Math.random() - 0.5) * 4)),
-        windSpeed: Math.max(0, prev.windSpeed + (Math.random() - 0.5) * 1),
-        uvIndex: Math.max(0, Math.min(11, prev.uvIndex + (Math.random() - 0.5) * 0.5)),
-      }))
-    }, 10000)
+    const coords = CITY_COORDS[selectedCity] || CITY_COORDS.Manhattan
+    const controller = new AbortController()
 
-    return () => clearInterval(interval)
-  }, [])
+    const loadWeather = async () => {
+      try {
+        const params = new URLSearchParams({
+          latitude: String(coords.lat),
+          longitude: String(coords.lng),
+          timezone: 'auto',
+          current: 'temperature_2m,relative_humidity_2m,wind_speed_10m,uv_index',
+        })
+        const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`, {
+          signal: controller.signal,
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch weather')
+        }
+
+        const data = await response.json()
+        const current = data.current || {}
+
+        setWeather({
+          temperature: Number(current.temperature_2m ?? 0),
+          humidity: Number(current.relative_humidity_2m ?? 0),
+          windSpeed: Number(current.wind_speed_10m ?? 0),
+          uvIndex: Number(current.uv_index ?? 0),
+        })
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          setWeather((prev) => prev)
+        }
+      }
+    }
+
+    loadWeather()
+    const interval = setInterval(loadWeather, 15 * 60 * 1000)
+
+    return () => {
+      controller.abort()
+      clearInterval(interval)
+    }
+  }, [selectedCity])
 
   return (
     <div className="flex flex-col w-full h-screen bg-gradient-to-br from-gray-900 via-secondary to-dark">
@@ -65,7 +98,11 @@ export default function Dashboard() {
           )}
           {activeTab === 'analysis' && (
             <div className="w-full h-full bg-dark p-6 overflow-y-auto">
-              <DataPanel location={selectedLocation} />
+              <DataPanel
+                location={selectedLocation}
+                selectedCity={selectedCity}
+                setSelectedCity={setSelectedCity}
+              />
             </div>
           )}
 
