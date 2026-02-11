@@ -13,11 +13,12 @@ type MockLocation = {
   comfort: number
 }
 
-interface LeafletMapProps {
+export interface LeafletMapProps {
   mapCenter: [number, number]
   mapZoom: number
   mapLayer: MapLayer
-  selectionMode: 'start' | 'end' | null
+  selectionModeRef: React.MutableRefObject<'start' | 'end' | null>
+  containerRef?: React.MutableRefObject<HTMLDivElement | null>
   mockLocations: MockLocation[]
   startPoint: Location | null
   endPoint: Location | null
@@ -30,7 +31,8 @@ export default function LeafletMap({
   mapCenter,
   mapZoom,
   mapLayer,
-  selectionMode,
+  selectionModeRef,
+  containerRef: containerRefProp,
   mockLocations,
   startPoint,
   endPoint,
@@ -39,6 +41,10 @@ export default function LeafletMap({
   onSelect,
 }: LeafletMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const setRef = (el: HTMLDivElement | null) => {
+    (containerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
+    if (containerRefProp) containerRefProp.current = el
+  }
   const mapRef = useRef<L.Map | null>(null)
   const layerRef = useRef<L.TileLayer | null>(null)
   const markersRef = useRef<Map<string, L.CircleMarker>>(new Map())
@@ -47,8 +53,10 @@ export default function LeafletMap({
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
 
+    const container = containerRef.current
+
     // Create map
-    const map = L.map(containerRef.current, {
+    const map = L.map(container, {
       center: mapCenter,
       zoom: mapZoom,
       zoomControl: false,
@@ -71,8 +79,29 @@ export default function LeafletMap({
     // Add zoom control
     L.control.zoom({ position: 'bottomleft' }).addTo(map)
 
+    // Sync map size after first layout (container may not have had final size at creation)
+    const syncSize = () => {
+      if (containerRef.current && containerRef.current.offsetWidth > 0 && containerRef.current.offsetHeight > 0 && mapRef.current) {
+        mapRef.current.invalidateSize()
+      }
+    }
+    requestAnimationFrame(syncSize)
+    setTimeout(syncSize, 50)
+    setTimeout(syncSize, 200)
+
+    // ResizeObserver: when container size changes, redraw map (only when container has valid size)
+    const ro = new ResizeObserver(() => {
+      if (!containerRef.current || !mapRef.current) return
+      const el = containerRef.current
+      if (el.offsetWidth > 0 && el.offsetHeight > 0) {
+        mapRef.current.invalidateSize()
+      }
+    })
+    ro.observe(container)
+
     // Cleanup on unmount
     return () => {
+      ro.disconnect()
       map.remove()
       mapRef.current = null
       layerRef.current = null
@@ -80,12 +109,12 @@ export default function LeafletMap({
     }
   }, [])
 
-  // Handle map click for point selection - separate effect to update when selectionMode changes
+  // Handle map click for point selection - read selectionModeRef so this effect never depends on selectionMode (avoids re-run → tiles stay)
   useEffect(() => {
     if (!mapRef.current) return
 
     const handleClick = (e: L.LeafletMouseEvent) => {
-      if (selectionMode) {
+      if (selectionModeRef.current) {
         onSelect(e.latlng.lat, e.latlng.lng)
       }
     }
@@ -97,7 +126,7 @@ export default function LeafletMap({
         mapRef.current.off('click', handleClick)
       }
     }
-  }, [selectionMode, onSelect])
+  }, [selectionModeRef, onSelect])
 
   // Update map view when center/zoom changes
   useEffect(() => {
@@ -130,11 +159,12 @@ export default function LeafletMap({
 
   // Update markers
   useEffect(() => {
-    if (!mapRef.current) return
+    const map = mapRef.current
+    if (!map) return
 
-    // Clear existing markers
+    // Clear existing markers only (never touch tile layer)
     markersRef.current.forEach((marker) => {
-      mapRef.current!.removeLayer(marker)
+      map.removeLayer(marker)
     })
     markersRef.current.clear()
 
@@ -148,7 +178,7 @@ export default function LeafletMap({
         radius: 11,
       })
       marker.bindPopup('<div class="text-xs font-semibold">Start Point</div>')
-      marker.addTo(mapRef.current)
+      marker.addTo(map)
       markersRef.current.set(`start-${startPoint.id}`, marker)
     }
 
@@ -162,15 +192,36 @@ export default function LeafletMap({
         radius: 10,
       })
       marker.bindPopup('<div class="text-xs font-semibold">End Point</div>')
-      marker.addTo(mapRef.current)
+      marker.addTo(map)
       markersRef.current.set(`end-${endPoint.id}`, marker)
     }
-  }, [mockLocations, startPoint, endPoint, selectedLocation, onLocationClick])
+
+    // Ensure tile layer is still on map and visible (re-add if needed)
+    if (layerRef.current && !map.hasLayer(layerRef.current)) {
+      layerRef.current.addTo(map)
+    }
+
+    // After layout updates, force Leaflet to recalc size and redraw tiles
+    const container = containerRef.current
+    const safeInvalidate = () => {
+      if (!container || !map) return
+      if (container.offsetWidth > 0 && container.offsetHeight > 0) {
+        map.invalidateSize()
+      }
+    }
+    requestAnimationFrame(safeInvalidate)
+    const t1 = setTimeout(safeInvalidate, 100)
+    const t2 = setTimeout(safeInvalidate, 400)
+    return () => {
+      clearTimeout(t1)
+      clearTimeout(t2)
+    }
+  }, [mockLocations, startPoint, endPoint, selectedLocation])
 
   return (
     <div
-      ref={containerRef}
-      className={`w-full h-full ${selectionMode ? 'cursor-crosshair' : ''}`}
+      ref={setRef}
+      className="w-full h-full"
       style={{ 
         position: 'relative',
         minHeight: '100%',

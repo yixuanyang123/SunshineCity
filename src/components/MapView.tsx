@@ -1,14 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { MapPin, Navigation, Search, X, ChevronUp, ChevronDown, Clock} from 'lucide-react'
 import { mockRoutePlan, searchLocations } from '@/lib/mockData'
 import { Location } from '@/lib/types'
 import dynamic from 'next/dynamic'
 
-const LeafletMap = dynamic(() => import('./LeafletMap'), {
-  ssr: false,
-})
+// Keep dynamic + ssr:false so Leaflet (browser-only) never runs on server.
+// key="main-map" keeps identity stable; loading="lazy" may reduce remount risk.
+const LeafletMap = dynamic(() => import('./LeafletMap'), { ssr: false })
 
 interface MapViewProps {
   onLocationSelect: (location: { lat: number; lng: number; name: string }) => void
@@ -101,7 +101,18 @@ export default function MapView({
   const [startPoint, setStartPoint] = useState<Location | null>(null)
   const [endPoint, setEndPoint] = useState<Location | null>(null)
   const [selectionMode, setSelectionMode] = useState<'start' | 'end' | null>(null)
-  
+  const selectionModeRef = useRef<'start' | 'end' | null>(null)
+  const mapContainerRef = useRef<HTMLDivElement>(null)
+  selectionModeRef.current = selectionMode
+
+  // Update cursor on map container without re-rendering LeafletMap (so tiles don't disappear)
+  useEffect(() => {
+    const el = mapContainerRef.current
+    if (!el) return
+    if (selectionMode) el.classList.add('cursor-crosshair')
+    else el.classList.remove('cursor-crosshair')
+  }, [selectionMode])
+
   // Search functionality
   const [startSearchQuery, setStartSearchQuery] = useState('')
   const [endSearchQuery, setEndSearchQuery] = useState('')
@@ -557,12 +568,6 @@ const getLightDefault = () => {
           </div>
         )}
 
-        {/* Selection Mode Hint */}
-        {selectionMode && (
-          <div className="mt-2 px-2 py-1.5 bg-blue-500/20 border border-blue-500/50 rounded text-blue-300 text-xs">
-            Click anywhere on map to set {selectionMode} point
-          </div>
-        )}
         </div>
       )}
       </div>
@@ -611,19 +616,28 @@ const getLightDefault = () => {
       </div>
 
       {/* Map Content */}
-      <div className="relative w-full h-full flex flex-col">
-        {/* Map Container */}
-        <div className="flex-1 relative p-3">
+      <div className="relative w-full h-full flex flex-col min-h-0">
+        {/* Map Container - min-h-0 lets flex shrink; min height keeps map visible after layout changes */}
+        <div className="flex-1 relative p-3 min-h-0" style={{ minHeight: 300 }}>
+          {/* Hint as sibling of map container so we never add/remove nodes inside map container (prevents map unmount) */}
+          {selectionMode && (
+            <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[10] px-4 py-2.5 bg-gray-900 border-2 border-yellow-400 rounded-lg shadow-lg text-yellow-300 text-sm font-semibold whitespace-nowrap pointer-events-none">
+              Click anywhere on map to set {selectionMode} point
+            </div>
+          )}
           <div 
+            key="map-container"
             className="w-full h-full relative rounded-xl border-2 border-yellow-500/30 overflow-hidden"
-            style={{ backgroundColor: '#1a1a1a' }}
+            style={{ backgroundColor: '#1a1a1a', minHeight: 280 }}
           >
             {isMounted && (
               <LeafletMap
+                key="main-map"
+                containerRef={mapContainerRef}
                 mapCenter={mapCenter}
                 mapZoom={mapZoom}
                 mapLayer={mapLayer}
-                selectionMode={selectionMode}
+                selectionModeRef={selectionModeRef}
                 mockLocations={mockLocations}
                 startPoint={startPoint}
                 endPoint={endPoint}
