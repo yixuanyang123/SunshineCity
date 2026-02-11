@@ -15,7 +15,7 @@ export default function Dashboard() {
     lng: number
     name: string
   } | null>(null)
-  const [selectedCity, setSelectedCity] = useState<string>('Manhattan')
+  const [selectedCity, setSelectedCity] = useState<string>('New York')
   const [weather, setWeather] = useState({
     temperature: 0,
     humidity: 0,
@@ -24,7 +24,7 @@ export default function Dashboard() {
   })
 
   useEffect(() => {
-    const coords = CITY_COORDS[selectedCity] || CITY_COORDS.Manhattan
+    const coords = CITY_COORDS[selectedCity] || CITY_COORDS['New York']
     const controller = new AbortController()
 
     const loadWeather = async () => {

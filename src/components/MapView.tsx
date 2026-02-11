@@ -27,7 +27,7 @@ const CITY_DATA: Record<
   string,
   { locations: { name: string; lat: number; lng: number; comfort: number }[]; bbox: { minLat: number; maxLat: number; minLng: number; maxLng: number } }
 > = {
-  Manhattan: {
+  'New York': {
     locations: [
       { name: 'Central Park', lat: 40.785, lng: -73.968, comfort: 85 },
       { name: 'Downtown Plaza', lat: 40.758, lng: -73.985, comfort: 72 },
@@ -70,12 +70,12 @@ const CITY_DATA: Record<
 
 export default function MapView({
   onLocationSelect,
-  selectedCity = 'Manhattan',
+  selectedCity = 'New York',
   setSelectedCity,
   weather,
   onRouteRequest,
 }: MapViewProps) {
-  const cityInfo = CITY_DATA[selectedCity] || CITY_DATA['Manhattan']
+  const cityInfo = CITY_DATA[selectedCity] || CITY_DATA['New York']
   const mockLocations = cityInfo.locations
   const { minLat, maxLat, minLng, maxLng } = cityInfo.bbox
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
@@ -304,7 +304,7 @@ const getLightDefault = () => {
       </div>
 
       {/* Route Selection Panel - Compact Overlay */}
-      <div className="absolute top-4 left-4 z-10 bg-gray-900/95 backdrop-blur-sm border border-gray-700 rounded-lg shadow-xl max-w-md">
+      <div className="absolute top-4 left-4 z-[5] bg-gray-900/95 backdrop-blur-sm border border-gray-700 rounded-lg shadow-xl max-w-md">
         {/* Header with collapse button */}
         <div className="flex items-center justify-between p-3 border-b border-gray-700">
           <div className="flex items-center gap-2">
@@ -568,7 +568,7 @@ const getLightDefault = () => {
       </div>
 
       {/* City + Layer Selector - Top Right */}
-      <div className="absolute top-4 right-4 z-10 bg-gray-900/95 backdrop-blur-sm border border-gray-700 rounded-lg shadow-xl px-3 py-2 w-48 space-y-2">
+      <div className="absolute top-4 right-4 z-[5] bg-gray-900/95 backdrop-blur-sm border border-gray-700 rounded-lg shadow-xl px-3 py-2 w-48 space-y-2">
         <div>
           <label className="block text-[10px] text-gray-400 mb-1">City</label>
           <select
@@ -594,7 +594,7 @@ const getLightDefault = () => {
                   : 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700'
               }`}
             >
-              Normal
+              Standard
             </button>
             <button
               onClick={() => setMapLayer('satellite')}
@@ -613,8 +613,11 @@ const getLightDefault = () => {
       {/* Map Content */}
       <div className="relative w-full h-full flex flex-col">
         {/* Map Container */}
-        <div className="flex-1 relative p-8">
-          <div className="w-full h-full relative rounded-2xl border-2 border-yellow-500/30 bg-gray-800/50 backdrop-blur-sm overflow-hidden">
+        <div className="flex-1 relative p-3">
+          <div 
+            className="w-full h-full relative rounded-xl border-2 border-yellow-500/30 overflow-hidden"
+            style={{ backgroundColor: '#1a1a1a' }}
+          >
             {isMounted && (
               <LeafletMap
                 mapCenter={mapCenter}
@@ -635,8 +638,8 @@ const getLightDefault = () => {
         </div>
 
         {/* Controls Bar */}
-        <div className="px-8 py-4 bg-gray-900/50 backdrop-blur-sm border-t border-gray-700 flex items-center justify-center">
-          <p className="text-gray-400 text-sm">© Cornell University AEXUS</p>
+        <div className="px-3 py-1.5 bg-gray-900/50 backdrop-blur-sm border-t border-gray-700 flex items-center justify-center">
+          <p className="text-gray-400 text-xs">© Cornell University AEXUS</p>
         </div>
       </div>
     </div>

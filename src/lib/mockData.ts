@@ -1,6 +1,6 @@
 import { Location, Route, RoutePlanResponse } from './types'
 
-// Mock 地点数据（Manhattan 区域）
+// Mock 地点数据（New York 区域）
 export const MOCK_LOCATIONS: Location[] = [
   { id: '1', name: 'Central Park', lat: 40.785, lng: -73.968, address: 'Central Park, New York, NY' },
   { id: '2', name: 'Times Square', lat: 40.758, lng: -73.985, address: 'Times Square, New York, NY' },

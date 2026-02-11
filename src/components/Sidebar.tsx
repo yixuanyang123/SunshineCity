@@ -16,14 +16,14 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
   ]
 
   return (
-    <aside className="w-24 bg-gray-900 border-r border-gray-700 flex flex-col items-center py-6 gap-6">
+    <aside className="w-20 bg-gray-900 border-r border-gray-700 flex flex-col items-center py-6 gap-6">
       {tabs.map((tab) => {
         const Icon = tab.icon
         return (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as 'map' | 'analysis' | '3d')}
-            className={`p-4 rounded-lg transition-all duration-300 ${
+            className={`p-3 rounded-lg transition-all duration-300 ${
               activeTab === tab.id
                 ? 'bg-gradient-to-br from-yellow-500 to-yellow-600 shadow-lg shadow-yellow-500/50'
                 : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
@@ -37,7 +37,7 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
 
       <div className="flex-1"></div>
 
-      <button className="p-4 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-400 transition-all duration-300">
+      <button className="p-3 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-400 transition-all duration-300">
         <Settings className="w-6 h-6" />
       </button>
     </aside>

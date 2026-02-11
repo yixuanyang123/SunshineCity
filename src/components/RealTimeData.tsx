@@ -15,14 +15,14 @@ interface RealTimeDataProps {
 
 // 城市时区映射
 const CITY_TIMEZONES: { [key: string]: string } = {
-  'Manhattan': 'America/New_York',
+  'New York': 'America/New_York',
   'Los Angeles': 'America/Los_Angeles',
   'Boston': 'America/New_York',
   'Miami': 'America/New_York',
   'San Diego': 'America/Los_Angeles',
 }
 
-export default function RealTimeData({ data, selectedCity = 'Manhattan' }: RealTimeDataProps) {
+export default function RealTimeData({ data, selectedCity = 'New York' }: RealTimeDataProps) {
   const [isVisible, setIsVisible] = useState(true)
   const [currentTime, setCurrentTime] = useState('')
 

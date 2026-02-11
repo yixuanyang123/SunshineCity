@@ -39,13 +39,13 @@ interface DataPanelProps {
   setSelectedCity?: (c: string) => void
 }
 
-export default function DataPanel({ location, selectedCity = 'Manhattan', setSelectedCity }: DataPanelProps) {
+export default function DataPanel({ location, selectedCity = 'New York', setSelectedCity }: DataPanelProps) {
   const [charts, setCharts] = useState<ChartState>(EMPTY_STATE)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const coords = CITY_COORDS[selectedCity] || CITY_COORDS.Manhattan
+    const coords = CITY_COORDS[selectedCity] || CITY_COORDS['New York']
     const controller = new AbortController()
 
     const loadData = async () => {

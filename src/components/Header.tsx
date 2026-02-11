@@ -35,16 +35,16 @@ export default function Header() {
   }
 
   return (
-    <header className="relative z-50 bg-gradient-to-r from-dark via-secondary to-dark border-b border-yellow-500/20 px-8 py-4 shadow-2xl">
+    <header className="relative z-50 bg-gradient-to-r from-dark via-secondary to-dark border-b border-yellow-500/20 px-6 py-2 shadow-2xl">
       <AccountModal open={modalOpen} onClose={() => setModalOpen(false)} onLogin={onLogin} />
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} email={userEmail ?? ''} onLogout={handleSignOut} />
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <div className="p-1 bg-transparent rounded-lg overflow-hidden">
-            <img src="/logo.png" alt="AEXUS" className="w-20 h-20 object-cover" />
+            <img src="/logo.png" alt="AEXUS" className="w-14 h-14 object-cover" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-500 bg-clip-text text-transparent">
+            <h1 className="text-[1.6rem] font-bold bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-500 bg-clip-text text-transparent">
               Sunshine City
             </h1>
             <p className="text-sm text-gray-300 font-medium">Urban Comfort Analysis Platform · By AEXUS</p>

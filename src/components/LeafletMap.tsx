@@ -61,19 +61,15 @@ export default function LeafletMap({
         ? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
         : 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
 
-    const layer = L.tileLayer(tileUrl, { attribution: '' })
+    const layer = L.tileLayer(tileUrl, { 
+      attribution: '',
+      keepBuffer: 2,
+    })
     layer.addTo(map)
     layerRef.current = layer
 
     // Add zoom control
-    L.control.zoom({ position: 'bottomright' }).addTo(map)
-
-    // Handle map click for point selection
-    map.on('click', (e) => {
-      if (selectionMode) {
-        onSelect(e.latlng.lat, e.latlng.lng)
-      }
-    })
+    L.control.zoom({ position: 'bottomleft' }).addTo(map)
 
     // Cleanup on unmount
     return () => {
@@ -83,6 +79,25 @@ export default function LeafletMap({
       markersRef.current.clear()
     }
   }, [])
+
+  // Handle map click for point selection - separate effect to update when selectionMode changes
+  useEffect(() => {
+    if (!mapRef.current) return
+
+    const handleClick = (e: L.LeafletMouseEvent) => {
+      if (selectionMode) {
+        onSelect(e.latlng.lat, e.latlng.lng)
+      }
+    }
+
+    mapRef.current.on('click', handleClick)
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.off('click', handleClick)
+      }
+    }
+  }, [selectionMode, onSelect])
 
   // Update map view when center/zoom changes
   useEffect(() => {
@@ -96,7 +111,7 @@ export default function LeafletMap({
 
     // Remove old layer
     if (layerRef.current) {
-      mapRef.current.removeLayer(layerRef.current)
+      layerRef.current.remove()
     }
 
     // Add new layer
@@ -105,7 +120,10 @@ export default function LeafletMap({
         ? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
         : 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
 
-    const newLayer = L.tileLayer(tileUrl, { attribution: '' })
+    const newLayer = L.tileLayer(tileUrl, { 
+      attribution: '',
+      keepBuffer: 2,
+    })
     newLayer.addTo(mapRef.current)
     layerRef.current = newLayer
   }, [mapLayer])
@@ -153,7 +171,13 @@ export default function LeafletMap({
     <div
       ref={containerRef}
       className={`w-full h-full ${selectionMode ? 'cursor-crosshair' : ''}`}
-      style={{ position: 'relative' }}
+      style={{ 
+        position: 'relative',
+        minHeight: '100%',
+        minWidth: '100%',
+        backgroundColor: '#1f2937',
+        zIndex: 0
+      }}
     />
   )
 }
