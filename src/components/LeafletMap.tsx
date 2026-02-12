@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import L from 'leaflet'
-import { Location } from '@/lib/types'
+import { Location, Route } from '@/lib/types'
 
 type MapLayer = 'standard' | 'satellite'
 
@@ -25,6 +25,9 @@ export interface LeafletMapProps {
   selectedLocation: string | null
   onLocationClick: (location: MockLocation) => void
   onSelect: (lat: number, lng: number) => void
+  routes: Route[]                     
+  selectedRouteId: string | null     
+  onRouteSelect: (routeId: string) => void 
 }
 
 export default function LeafletMap({
@@ -39,6 +42,9 @@ export default function LeafletMap({
   selectedLocation,
   onLocationClick,
   onSelect,
+  routes,              
+  selectedRouteId,     
+  onRouteSelect,       
 }: LeafletMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const setRef = (el: HTMLDivElement | null) => {
@@ -48,6 +54,8 @@ export default function LeafletMap({
   const mapRef = useRef<L.Map | null>(null)
   const layerRef = useRef<L.TileLayer | null>(null)
   const markersRef = useRef<Map<string, L.CircleMarker>>(new Map())
+  const routeLayersRef = useRef<Map<string, L.Polyline>>(new Map())
+
 
   // Initialize map once
   useEffect(() => {
@@ -217,6 +225,53 @@ export default function LeafletMap({
       clearTimeout(t2)
     }
   }, [mockLocations, startPoint, endPoint, selectedLocation])
+
+    //function to determine route color based on sun exposure (blue=cool, red=hot), for multi-route display
+    function getRouteColor(sunExposure: number): string {
+    const MIN = 30   // cool threshold
+    const MAX = 85   // hot threshold
+
+    // Clamp value
+    const clamped = Math.min(Math.max(sunExposure, MIN), MAX)
+
+    const ratio = (clamped - MIN) / (MAX - MIN)
+
+    // Blue (240) → Red (0)
+    const hue = 240 - ratio * 240
+
+    return `hsl(${hue}, 100%, 50%)`
+  }
+  //for multi routes display, need to clear old route layers and add all routes, with selected one highlighted
+  useEffect(() => {
+  const map = mapRef.current
+  if (!map) return
+
+  // Clear old route layers
+  routeLayersRef.current.forEach((polyline) => {
+    map.removeLayer(polyline)
+  })
+  routeLayersRef.current.clear()
+
+  // Add all routes
+  routes.forEach((route) => {
+    const latLngs = route.points.map(p => [p.lat, p.lng] as [number, number])
+
+    const polyline = L.polyline(latLngs, {
+      color: getRouteColor(route.sunExposure),
+      weight: selectedRouteId === route.id ? 7 : 4,
+      opacity: selectedRouteId === route.id ? 1 : 0.5,
+    })
+
+    polyline.on('click', () => {
+      onRouteSelect(route.id)
+    })
+
+    polyline.addTo(map)
+    routeLayersRef.current.set(route.id, polyline)
+  })
+
+}, [routes, selectedRouteId, onRouteSelect])
+
 
   return (
     <div
