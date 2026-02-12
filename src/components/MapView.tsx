@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { MapPin, Navigation, Search, X, ChevronUp, ChevronDown, Clock} from 'lucide-react'
 import { mockRoutePlan, searchLocations } from '@/lib/mockData'
-import { Location } from '@/lib/types'
+import { Location, Route } from '@/lib/types'
 import dynamic from 'next/dynamic'
 
 // Keep dynamic + ssr:false so Leaflet (browser-only) never runs on server.
@@ -82,12 +82,16 @@ export default function MapView({
   const [travelMode, setTravelMode] = useState<'walking' | 'cycling'>('walking')
   const [hour, setHour] = useState<number>(new Date().getHours());
   const [minute, setMinute] = useState<number>(Math.round(new Date().getMinutes() / 10) * 10);
+
+  const [routes, setRoutes] = useState<Route[]>([]) //stores all routes
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null)
   const [routeSummary, setRouteSummary] = useState<{
     distance: number
     duration: number
     sunExposure: number
     color: string
   } | null>(null)
+
   const [mapLayer, setMapLayer] = useState<'standard' | 'satellite'>('standard')
   
   const [isMounted, setIsMounted] = useState(false)
@@ -235,13 +239,19 @@ export default function MapView({
 
       const nowIso = departureDate.toISOString()
       const plan = mockRoutePlan(startPoint, endPoint, travelMode, nowIso, lightMode)
-      const best = plan.routes[0]
+
+      setRoutes(plan.routes)
+
+      const defaultRoute = plan.routes[0]
+      setSelectedRouteId(defaultRoute.id)
+
       setRouteSummary({
-        distance: best.distance,
-        duration: best.duration,
-        sunExposure: best.sunExposure,
-        color: best.color,
+        distance: defaultRoute.distance,
+        duration: defaultRoute.duration,
+        sunExposure: defaultRoute.sunExposure,
+        color: defaultRoute.color,
       })
+
     }
   }
 
@@ -290,6 +300,20 @@ const getLightDefault = () => {
 
     setHour(currentHours)
     setMinute(currentMinutes)
+  }
+
+  const handleRouteSelect = (routeId: string) => {
+  setSelectedRouteId(routeId)
+
+  const selected = routes.find(r => r.id === routeId)
+  if (!selected) return
+
+  setRouteSummary({
+    distance: selected.distance,
+    duration: selected.duration,
+    sunExposure: selected.sunExposure,
+    color: selected.color,
+  })
   }
   
   const [lightMode, setLightMode] = useState<'sun' | 'shade'>(getLightDefault())
@@ -565,8 +589,30 @@ const getLightDefault = () => {
               <span>Mode Speed</span>
               <span className="font-mono">{defaultSpeed} km/h</span>
             </div>
-          </div>
-        )}
+          <div className="pt-2 border-t border-gray-700 space-y-1">
+      <div className="text-[10px] text-gray-400 text-center">
+        Sun Exposure Scale
+      </div>
+
+      {/* Gradient Bar Legend*/}
+      <div
+        className="h-2 w-full rounded-full"
+        style={{
+          background:
+            'linear-gradient(to right, hsl(240,100%,50%), hsl(120,100%,50%), hsl(60,100%,50%), hsl(0,100%,50%))',
+        }}
+      />
+
+      {/* Scale Labels */}
+      <div className="flex justify-between text-[9px] text-gray-500">
+        <span>30% Cool</span>
+        <span>~60%</span>
+        <span>85% Hot</span>
+      </div>
+    </div>
+
+  </div>
+)}
 
         </div>
       )}
@@ -644,6 +690,9 @@ const getLightDefault = () => {
                 selectedLocation={selectedLocation}
                 onLocationClick={handleLocationClick}
                 onSelect={handleMapSelect}
+                routes={routes}
+                selectedRouteId={selectedRouteId}
+                onRouteSelect={handleRouteSelect}
               />
             )}
 
