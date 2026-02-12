@@ -11,6 +11,7 @@ interface RealTimeDataProps {
     uvIndex: number
   }
   selectedCity?: string
+  error?: string | null
 }
 
 // 城市时区映射
@@ -22,7 +23,7 @@ const CITY_TIMEZONES: { [key: string]: string } = {
   'San Diego': 'America/Los_Angeles',
 }
 
-export default function RealTimeData({ data, selectedCity = 'New York' }: RealTimeDataProps) {
+export default function RealTimeData({ data, selectedCity = 'New York', error }: RealTimeDataProps) {
   const [isVisible, setIsVisible] = useState(true)
   const [currentTime, setCurrentTime] = useState('')
 
@@ -72,6 +73,11 @@ export default function RealTimeData({ data, selectedCity = 'New York' }: RealTi
 
       {isVisible && (
         <>
+          {error && (
+            <div className="mx-4 mt-3 px-3 py-2 rounded bg-red-500/20 border border-red-500/50 text-red-300 text-xs">
+              {error}. Check console for details. Ensure API allows CORS for this origin.
+            </div>
+          )}
           <div className="p-4 space-y-3">
         <div className="flex items-center justify-between bg-gray-800 p-3 rounded-lg">
           <div className="flex items-center gap-2 text-gray-300 text-sm">
@@ -94,7 +100,7 @@ export default function RealTimeData({ data, selectedCity = 'New York' }: RealTi
             <Wind className="w-4 h-4 text-cyan-400" />
             Wind Speed
           </div>
-          <span className="text-cyan-300 font-mono font-semibold">{data.windSpeed.toFixed(1)} m/s</span>
+          <span className="text-cyan-300 font-mono font-semibold">{data.windSpeed.toFixed(1)} km/h</span>
         </div>
 
         <div className="flex items-center justify-between bg-gray-800 p-3 rounded-lg">

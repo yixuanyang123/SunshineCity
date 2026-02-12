@@ -22,39 +22,50 @@ export default function Dashboard() {
     windSpeed: 0,
     uvIndex: 0,
   })
+  const [weatherError, setWeatherError] = useState<string | null>(null)
 
   useEffect(() => {
     const coords = CITY_COORDS[selectedCity] || CITY_COORDS['New York']
     const controller = new AbortController()
+    const apiUrl = '/api/weather'
 
     const loadWeather = async () => {
+      setWeatherError(null)
       try {
-        const params = new URLSearchParams({
-          latitude: String(coords.lat),
-          longitude: String(coords.lng),
-          timezone: 'auto',
-          current: 'temperature_2m,relative_humidity_2m,wind_speed_10m,uv_index',
-        })
-        const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`, {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lat: coords.lat, lon: coords.lng }),
           signal: controller.signal,
         })
 
         if (!response.ok) {
-          throw new Error('Failed to fetch weather')
+          throw new Error(`Weather API error: ${response.status}`)
         }
 
-        const data = await response.json()
-        const current = data.current || {}
+        const raw = await response.json()
+        const data = raw?.body && typeof raw.body === 'string' ? JSON.parse(raw.body) : raw
+
+        const temp = data?.temperature?.value ?? data?.temperature ?? 0
+        const humidityVal = data?.humidity?.value ?? data?.humidity ?? 0
+        const uvVal = data?.uv_index?.value ?? data?.uv_index ?? data?.uvIndex ?? 0
+        const windVal = data?.wind_speed?.value ?? data?.wind_speed ?? data?.windSpeed ?? 0
+        const windUnit = (data?.wind_speed?.unit ?? data?.windSpeed?.unit ?? '').toLowerCase()
+        const windKmh = windUnit.includes('m/s') || windUnit === 'm/s' ? Number(windVal) * 3.6 : Number(windVal)
 
         setWeather({
-          temperature: Number(current.temperature_2m ?? 0),
-          humidity: Number(current.relative_humidity_2m ?? 0),
-          windSpeed: Number(current.wind_speed_10m ?? 0),
-          uvIndex: Number(current.uv_index ?? 0),
+          temperature: Number(temp),
+          humidity: Number(humidityVal),
+          windSpeed: Number(windKmh),
+          uvIndex: Number(uvVal),
         })
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
-          setWeather((prev) => prev)
+          const msg = err instanceof Error ? err.message : 'Failed to load weather'
+          setWeatherError(msg)
+          if (process.env.NODE_ENV === 'development') {
+            console.error('[Weather API]', msg, err)
+          }
         }
       }
     }
@@ -107,7 +118,7 @@ export default function Dashboard() {
           )}
 
           {/* Real-time Data Panel - Only show on map and 3d */}
-          {(activeTab === 'map' || activeTab === '3d') && <RealTimeData data={weather} selectedCity={selectedCity} />}
+          {(activeTab === 'map' || activeTab === '3d') && <RealTimeData data={weather} selectedCity={selectedCity} error={weatherError} />}
         </div>
       </div>
     </div>

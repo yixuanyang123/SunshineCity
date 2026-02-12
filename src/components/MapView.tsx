@@ -256,7 +256,7 @@ export default function MapView({
     if (temperature <= 5) factor -= 0.15
     if (humidity >= 80) factor -= 0.05
     if (uvIndex >= 8) factor -= 0.05
-    if (windSpeed >= 8) factor -= travelMode === 'cycling' ? 0.12 : 0.06
+    if (windSpeed >= 29) factor -= travelMode === 'cycling' ? 0.12 : 0.06
 
     const adjusted = baseSpeed * Math.max(0.7, factor)
     return Math.round(adjusted * 10) / 10
