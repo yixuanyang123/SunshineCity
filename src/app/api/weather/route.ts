@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-const WEATHER_API = 'https://ohikw6407l.execute-api.us-east-2.amazonaws.com/default/weather'
+const OPEN_METEO_API = 'https://api.open-meteo.com/v1/forecast'
 
 export async function POST(request: Request) {
   try {
@@ -10,15 +10,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'lat and lon (numbers) required' }, { status: 400 })
     }
 
-    const res = await fetch(WEATHER_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lat, lon }),
+    const params = new URLSearchParams({
+      latitude: String(lat),
+      longitude: String(lon),
+      timezone: 'auto',
+      current: 'temperature_2m,relative_humidity_2m,wind_speed_10m,uv_index',
+      hourly: 'temperature_2m,relative_humidity_2m,uv_index,shortwave_radiation,wind_speed_10m',
+      daily: 'temperature_2m_max,temperature_2m_min,shortwave_radiation_sum,uv_index_max',
     })
 
+    const res = await fetch(`${OPEN_METEO_API}?${params.toString()}`)
     const data = await res.json()
     if (!res.ok) {
-      return NextResponse.json(data || { error: 'Weather API error' }, { status: res.status })
+      return NextResponse.json(data || { error: 'Open-Meteo error' }, { status: res.status })
     }
 
     return NextResponse.json(data)

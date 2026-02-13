@@ -13,9 +13,10 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts'
+import { Info } from 'lucide-react'
 import { CITY_COORDS } from '@/lib/cityData'
 
-type DailyPoint = { time: string; comfort: number; shadow: number; temp: number }
+type DailyPoint = { time: string; comfort: number; humidity: number; wind: number; temp: number }
 type CityAveragePoint = { time: string; radiance: number; shadowAvg: number }
 type WeeklyPoint = { day: string; comfort: number; cycling: number }
 
@@ -53,16 +54,10 @@ export default function DataPanel({ location, selectedCity = 'New York', setSele
         setIsLoading(true)
         setError(null)
 
-        const params = new URLSearchParams({
-          latitude: String(coords.lat),
-          longitude: String(coords.lng),
-          timezone: 'auto',
-          current: 'temperature_2m,relative_humidity_2m,wind_speed_10m,uv_index',
-          hourly: 'temperature_2m,relative_humidity_2m,uv_index,shortwave_radiation,wind_speed_10m',
-          daily: 'temperature_2m_max,temperature_2m_min,shortwave_radiation_sum,uv_index_max',
-        })
-
-        const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`, {
+        const response = await fetch('/api/weather', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lat: coords.lat, lon: coords.lng, includeForecast: true }),
           signal: controller.signal,
         })
 
@@ -70,7 +65,8 @@ export default function DataPanel({ location, selectedCity = 'New York', setSele
           throw new Error('Failed to fetch weather data')
         }
 
-        const data = await response.json()
+        const raw = await response.json()
+        const data = raw?.body && typeof raw.body === 'string' ? JSON.parse(raw.body) : raw
         const hourly = data.hourly || {}
         const daily = data.daily || {}
 
@@ -86,6 +82,7 @@ export default function DataPanel({ location, selectedCity = 'New York', setSele
         const cityPoints: CityAveragePoint[] = []
 
         const radiationToPercent = (value: number) => Math.min(100, Math.max(0, Math.round((value / 1000) * 100)))
+        const windToPercent = (value: number) => Math.min(100, Math.max(0, Math.round((value / 20) * 100)))
         const comfortScore = (t: number, h: number, u: number, w: number) => {
           const tempPenalty = Math.abs(t - 22) * 2
           const humidityPenalty = Math.max(0, h - 50) * 0.2
@@ -106,11 +103,11 @@ export default function DataPanel({ location, selectedCity = 'New York', setSele
           }
 
           if (index % 4 === 0) {
-            const radiance = radiationToPercent(shortwave[index] ?? 0)
             dailyPoints.push({
               time: formatHourLabel(time),
               comfort: comfortScore(temps[index] ?? 0, humidity[index] ?? 0, uvIndex[index] ?? 0, wind[index] ?? 0),
-              shadow: 100 - radiance,
+              humidity: Math.min(100, Math.max(0, Math.round(humidity[index] ?? 0))),
+              wind: windToPercent(wind[index] ?? 0),
               temp: Math.round((temps[index] ?? 0) * 10) / 10,
             })
           }
@@ -201,12 +198,30 @@ export default function DataPanel({ location, selectedCity = 'New York', setSele
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Daily Comfort Analysis */}
         <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-yellow-500/50 transition-all duration-300 shadow-lg">
-          <h3 className="text-lg font-semibold text-yellow-400 mb-4">Daily Comfort Index</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-yellow-400">Daily Comfort Index</h3>
+            <div className="relative group">
+              <button
+                type="button"
+                aria-label="Comfort score details"
+                className="text-gray-400 hover:text-yellow-300 transition-colors"
+              >
+                <Info className="w-4 h-4" />
+              </button>
+              <div className="absolute right-0 mt-2 w-72 rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs text-gray-200 opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
+                <p className="font-semibold text-yellow-300 mb-1">Comfort scoring</p>
+                <p>Score = 100 - (|temp-22|*2 + max(0, humidity-50)*0.2 + UV*2 + wind*1.5)</p>
+                <p className="mt-2 font-semibold text-yellow-300">Normalization</p>
+                <p>Humidity uses Open-Meteo percent. Wind is normalized: wind% = min(100, (wind/20)*100).</p>
+              </div>
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={charts.daily}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
               <XAxis dataKey="time" stroke="#9CA3AF" />
-              <YAxis stroke="#9CA3AF" />
+              <YAxis yAxisId="left" stroke="#9CA3AF" domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} />
+              <YAxis yAxisId="right" orientation="right" stroke="#9CA3AF" domain={['dataMin - 2', 'dataMax + 2']} />
               <Tooltip
                 contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #4B5563' }}
                 labelStyle={{ color: '#F3F4F6' }}
@@ -215,19 +230,33 @@ export default function DataPanel({ location, selectedCity = 'New York', setSele
               <Line
                 type="monotone"
                 dataKey="comfort"
+                name="Comfort"
+                yAxisId="left"
                 stroke="#FBBF24"
                 dot={{ fill: '#F59E0B', r: 4 }}
                 activeDot={{ r: 6 }}
               />
               <Line
                 type="monotone"
-                dataKey="shadow"
+                dataKey="humidity"
+                name="Humidity"
+                yAxisId="left"
                 stroke="#60A5FA"
                 dot={{ fill: '#3B82F6', r: 4 }}
               />
               <Line
                 type="monotone"
+                dataKey="wind"
+                name="Wind (norm)"
+                yAxisId="left"
+                stroke="#34D399"
+                dot={{ fill: '#34D399', r: 4 }}
+              />
+              <Line
+                type="monotone"
                 dataKey="temp"
+                yAxisId="right"
+                name="Temp (C)"
                 stroke="#F87171"
                 dot={{ fill: '#F87171', r: 4 }}
               />
@@ -242,7 +271,7 @@ export default function DataPanel({ location, selectedCity = 'New York', setSele
             <LineChart data={charts.cityAverages}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
               <XAxis dataKey="time" stroke="#9CA3AF" />
-              <YAxis stroke="#9CA3AF" />
+              <YAxis stroke="#9CA3AF" domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} />
               <Tooltip
                 contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #4B5563' }}
                 labelStyle={{ color: '#F3F4F6' }}
@@ -270,14 +299,31 @@ export default function DataPanel({ location, selectedCity = 'New York', setSele
       {/* Monthly Trend */}
       <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-green-500/50 transition-all duration-300 shadow-lg">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-green-400">7-Day Comfort</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-green-400">7-Day Comfort</h3>
+            <div className="relative group">
+              <button
+                type="button"
+                aria-label="7-day comfort details"
+                className="text-gray-400 hover:text-green-300 transition-colors"
+              >
+                <Info className="w-4 h-4" />
+              </button>
+              <div className="absolute left-0 mt-2 w-72 rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs text-gray-200 opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
+                <p className="font-semibold text-green-300 mb-1">7-day comfort</p>
+                <p>Daily comfort uses avg temp from max/min, UV max, humidity 55, wind 4 with the same formula.</p>
+                <p className="mt-2 font-semibold text-green-300">Normalization</p>
+                <p>Day radiance = min(100, (shortwave_sum/24000)*100). Cycling = comfort*0.9 + radiance*0.1.</p>
+              </div>
+            </div>
+          </div>
           {isLoading && <span className="text-xs text-gray-400">Updating...</span>}
         </div>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={charts.weekly}>
             <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
             <XAxis dataKey="day" stroke="#9CA3AF" />
-            <YAxis stroke="#9CA3AF" />
+            <YAxis stroke="#9CA3AF" domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} />
             <Tooltip
               contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #4B5563' }}
               labelStyle={{ color: '#F3F4F6' }}

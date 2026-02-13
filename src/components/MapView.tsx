@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { MapPin, Navigation, Search, X, ChevronUp, ChevronDown, Clock} from 'lucide-react'
-import { mockRoutePlan, searchLocations } from '@/lib/mockData'
+import { mockRoutePlan } from '@/lib/mockData'
 import { Location, Route } from '@/lib/types'
 import dynamic from 'next/dynamic'
 
@@ -68,6 +68,19 @@ const CITY_DATA: Record<
   },
 }
 
+const toRad = (value: number) => (value * Math.PI) / 180
+
+const getDistanceKm = (start: Location, end: Location) => {
+  const R = 6371
+  const dLat = toRad(end.lat - start.lat)
+  const dLng = toRad(end.lng - start.lng)
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(start.lat)) * Math.cos(toRad(end.lat)) * Math.sin(dLng / 2) * Math.sin(dLng / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
+
 export default function MapView({
   onLocationSelect,
   selectedCity = 'New York',
@@ -108,6 +121,7 @@ export default function MapView({
   const selectionModeRef = useRef<'start' | 'end' | null>(null)
   const mapContainerRef = useRef<HTMLDivElement>(null)
   selectionModeRef.current = selectionMode
+  const [distanceError, setDistanceError] = useState<string | null>(null)
 
   // Update cursor on map container without re-rendering LeafletMap (so tiles don't disappear)
   useEffect(() => {
@@ -124,6 +138,11 @@ export default function MapView({
   const [endSearchResults, setEndSearchResults] = useState<Location[]>([])
   const [showStartResults, setShowStartResults] = useState(false)
   const [showEndResults, setShowEndResults] = useState(false)
+  const [isSearchingStart, setIsSearchingStart] = useState(false)
+  const [isSearchingEnd, setIsSearchingEnd] = useState(false)
+  const startSearchTokenRef = useRef(0)
+  const endSearchTokenRef = useRef(0)
+  const [searchMetro, setSearchMetro] = useState(false)
 
   // Clear search results when entering selection mode
   useEffect(() => {
@@ -133,28 +152,113 @@ export default function MapView({
     }
   }, [selectionMode])
 
-  // Update search results
+  const buildViewbox = () => `${minLng},${maxLat},${maxLng},${minLat}`
+  const isLatLngQuery = (value: string) => /^-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?$/.test(value)
+  const MIN_QUERY_LEN = 2
+  const SEARCH_DEBOUNCE_MS = 200
+
+  const fetchLandmarks = async (query: string, signal: AbortSignal) => {
+    const viewbox = searchMetro ? undefined : buildViewbox()
+    const response = await fetch('/api/geocode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, viewbox }),
+      signal,
+    })
+
+    if (!response.ok) {
+      throw new Error('Landmark search failed')
+    }
+
+    const data = await response.json()
+    if (!Array.isArray(data)) return []
+
+    return data.map((item) => {
+      const name = item?.name || (typeof item?.display_name === 'string' ? item.display_name.split(',')[0] : 'Landmark')
+      const address = item?.display_name || ''
+
+      return {
+        id: String(item?.place_id ?? name),
+        name,
+        lat: Number(item?.lat ?? 0),
+        lng: Number(item?.lon ?? 0),
+        address,
+      } as Location
+    })
+  }
+
+  // Update search results (OpenStreetMap landmarks)
   useEffect(() => {
-    if (startSearchQuery.trim()) {
-      const results = searchLocations(startSearchQuery)
-      setStartSearchResults(results)
-      setShowStartResults(true)
-    } else {
+    const query = startSearchQuery.trim()
+    if (!query || query.length < MIN_QUERY_LEN || selectionMode || isLatLngQuery(query)) {
       setStartSearchResults([])
       setShowStartResults(false)
+      setIsSearchingStart(false)
+      return
     }
-  }, [startSearchQuery])
+
+    const controller = new AbortController()
+    const token = ++startSearchTokenRef.current
+    setIsSearchingStart(true)
+    setShowStartResults(true)
+
+    const timer = setTimeout(async () => {
+      try {
+        const results = await fetchLandmarks(query, controller.signal)
+        if (token !== startSearchTokenRef.current) return
+        setStartSearchResults(results)
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          setStartSearchResults([])
+        }
+      } finally {
+        if (token === startSearchTokenRef.current) {
+          setIsSearchingStart(false)
+        }
+      }
+    }, SEARCH_DEBOUNCE_MS)
+
+    return () => {
+      controller.abort()
+      clearTimeout(timer)
+    }
+  }, [startSearchQuery, selectedCity, selectionMode, searchMetro])
 
   useEffect(() => {
-    if (endSearchQuery.trim()) {
-      const results = searchLocations(endSearchQuery)
-      setEndSearchResults(results)
-      setShowEndResults(true)
-    } else {
+    const query = endSearchQuery.trim()
+    if (!query || query.length < MIN_QUERY_LEN || selectionMode || isLatLngQuery(query)) {
       setEndSearchResults([])
       setShowEndResults(false)
+      setIsSearchingEnd(false)
+      return
     }
-  }, [endSearchQuery])
+
+    const controller = new AbortController()
+    const token = ++endSearchTokenRef.current
+    setIsSearchingEnd(true)
+    setShowEndResults(true)
+
+    const timer = setTimeout(async () => {
+      try {
+        const results = await fetchLandmarks(query, controller.signal)
+        if (token !== endSearchTokenRef.current) return
+        setEndSearchResults(results)
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          setEndSearchResults([])
+        }
+      } finally {
+        if (token === endSearchTokenRef.current) {
+          setIsSearchingEnd(false)
+        }
+      }
+    }, SEARCH_DEBOUNCE_MS)
+
+    return () => {
+      controller.abort()
+      clearTimeout(timer)
+    }
+  }, [endSearchQuery, selectedCity, selectionMode, searchMetro])
 
   const handleLocationClick = (location: (typeof mockLocations)[0]) => {
     setSelectedLocation(location.name)
@@ -166,21 +270,25 @@ export default function MapView({
     
     // If in selection mode, set as start or end point
     if (selectionMode === 'start') {
-      setStartPoint({
+      const nextStart = {
         id: location.name,
         name: location.name,
         lat: location.lat,
         lng: location.lng,
-      })
+      }
+      if (!validateDistance(nextStart, endPoint)) return
+      setStartPoint(nextStart)
       setStartSearchQuery(location.name)
       setSelectionMode(null)
     } else if (selectionMode === 'end') {
-      setEndPoint({
+      const nextEnd = {
         id: location.name,
         name: location.name,
         lat: location.lat,
         lng: location.lng,
-      })
+      }
+      if (!validateDistance(startPoint, nextEnd)) return
+      setEndPoint(nextEnd)
       setEndSearchQuery(location.name)
       setSelectionMode(null)
     }
@@ -195,22 +303,28 @@ export default function MapView({
     }
 
     if (selectionMode === 'start') {
+      if (!validateDistance(newLocation, endPoint)) return
       setStartPoint(newLocation)
       setStartSearchQuery(`${lat.toFixed(4)}, ${lng.toFixed(4)}`)
+      setShowStartResults(false)
       setSelectionMode(null)
     } else if (selectionMode === 'end') {
+      if (!validateDistance(startPoint, newLocation)) return
       setEndPoint(newLocation)
       setEndSearchQuery(`${lat.toFixed(4)}, ${lng.toFixed(4)}`)
+      setShowEndResults(false)
       setSelectionMode(null)
     }
   }
 
   const handleSearchResultClick = (location: Location, type: 'start' | 'end') => {
     if (type === 'start') {
+      if (!validateDistance(location, endPoint)) return
       setStartPoint(location)
       setStartSearchQuery(location.name)
       setShowStartResults(false)
     } else {
+      if (!validateDistance(startPoint, location)) return
       setEndPoint(location)
       setEndSearchQuery(location.name)
       setShowEndResults(false)
@@ -220,14 +334,17 @@ export default function MapView({
   const clearStartPoint = () => {
     setStartPoint(null)
     setStartSearchQuery('')
+    setDistanceError(null)
   }
 
   const clearEndPoint = () => {
     setEndPoint(null)
     setEndSearchQuery('')
+    setDistanceError(null)
   }
 
   const handleFindRoute = () => {
+    if (!validateDistance(startPoint, endPoint)) return
     if (startPoint && endPoint && onRouteRequest) {
       onRouteRequest(startPoint, endPoint)
     }
@@ -315,6 +432,22 @@ const getLightDefault = () => {
     color: selected.color,
   })
   }
+
+  const validateDistance = (start: Location | null, end: Location | null) => {
+    if (!start || !end) {
+      setDistanceError(null)
+      return true
+    }
+
+    const distance = getDistanceKm(start, end)
+    if (distance > 15) {
+      setDistanceError(`Route distance ${distance.toFixed(1)} km exceeds 15 km limit for walking/cycling.`)
+      return false
+    }
+
+    setDistanceError(null)
+    return true
+  }
   
   const [lightMode, setLightMode] = useState<'sun' | 'shade'>(getLightDefault())
   const defaultSpeed = getDefaultSpeed()
@@ -361,6 +494,11 @@ const getLightDefault = () => {
         
         {isPanelVisible && (
           <div className="p-3 space-y-2">
+            {distanceError && (
+              <div className="rounded border border-red-500/50 bg-red-500/10 px-2 py-1.5 text-[11px] text-red-200">
+                {distanceError}
+              </div>
+            )}
             {/* Travel Mode Toggle */}
 
             <div>
@@ -442,6 +580,24 @@ const getLightDefault = () => {
 
           </div>
 
+          <div className="flex items-center justify-between rounded border border-gray-700 bg-gray-800/70 px-2 py-1.5 text-xs text-gray-300">
+            <span>Search entire metro area</span>
+            <button
+              type="button"
+              onClick={() => setSearchMetro((prev) => !prev)}
+              className={`h-5 w-9 rounded-full border transition-colors ${
+                searchMetro ? 'bg-yellow-500 border-yellow-500' : 'bg-gray-700 border-gray-600'
+              }`}
+              aria-pressed={searchMetro}
+            >
+              <span
+                className={`block h-4 w-4 rounded-full bg-gray-900 transition-transform ${
+                  searchMetro ? 'translate-x-4' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+
           {/* Start Point Selection */}
           <div>
             <label className="text-xs text-gray-300 flex items-center gap-2 mb-1">
@@ -482,9 +638,15 @@ const getLightDefault = () => {
               </div>
               
               {/* Search Results Dropdown */}
-              {showStartResults && startSearchResults.length > 0 && (
+              {showStartResults && (
                 <div className="absolute top-full mt-1 w-full bg-gray-800 border border-gray-600 rounded shadow-lg z-20 max-h-40 overflow-y-auto">
-                  {startSearchResults.map((location) => (
+                  {isSearchingStart && (
+                    <div className="px-2 py-2 text-[11px] text-gray-400">Searching...</div>
+                  )}
+                  {!isSearchingStart && startSearchResults.length === 0 && (
+                    <div className="px-2 py-2 text-[11px] text-gray-400">No results found</div>
+                  )}
+                  {!isSearchingStart && startSearchResults.map((location) => (
                     <button
                       key={location.id}
                       onClick={() => handleSearchResultClick(location, 'start')}
@@ -541,9 +703,15 @@ const getLightDefault = () => {
               </div>
               
               {/* Search Results Dropdown */}
-              {showEndResults && endSearchResults.length > 0 && (
+              {showEndResults && (
                 <div className="absolute top-full mt-1 w-full bg-gray-800 border border-gray-600 rounded shadow-lg z-20 max-h-40 overflow-y-auto">
-                  {endSearchResults.map((location) => (
+                  {isSearchingEnd && (
+                    <div className="px-2 py-2 text-[11px] text-gray-400">Searching...</div>
+                  )}
+                  {!isSearchingEnd && endSearchResults.length === 0 && (
+                    <div className="px-2 py-2 text-[11px] text-gray-400">No results found</div>
+                  )}
+                  {!isSearchingEnd && endSearchResults.map((location) => (
                     <button
                       key={location.id}
                       onClick={() => handleSearchResultClick(location, 'end')}

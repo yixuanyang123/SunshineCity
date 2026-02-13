@@ -45,18 +45,17 @@ export default function Dashboard() {
 
         const raw = await response.json()
         const data = raw?.body && typeof raw.body === 'string' ? JSON.parse(raw.body) : raw
+        const current = data?.current || {}
 
-        const temp = data?.temperature?.value ?? data?.temperature ?? 0
-        const humidityVal = data?.humidity?.value ?? data?.humidity ?? 0
-        const uvVal = data?.uv_index?.value ?? data?.uv_index ?? data?.uvIndex ?? 0
-        const windVal = data?.wind_speed?.value ?? data?.wind_speed ?? data?.windSpeed ?? 0
-        const windUnit = (data?.wind_speed?.unit ?? data?.windSpeed?.unit ?? '').toLowerCase()
-        const windKmh = windUnit.includes('m/s') || windUnit === 'm/s' ? Number(windVal) * 3.6 : Number(windVal)
+        const temp = current.temperature_2m ?? 0
+        const humidityVal = current.relative_humidity_2m ?? 0
+        const uvVal = current.uv_index ?? 0
+        const windVal = current.wind_speed_10m ?? 0
 
         setWeather({
           temperature: Number(temp),
           humidity: Number(humidityVal),
-          windSpeed: Number(windKmh),
+          windSpeed: Number(windVal),
           uvIndex: Number(uvVal),
         })
       } catch (err) {
