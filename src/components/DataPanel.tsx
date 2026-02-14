@@ -208,7 +208,7 @@ export default function DataPanel({ location, selectedCity = 'New York', setSele
               >
                 <Info className="w-4 h-4" />
               </button>
-              <div className="absolute right-0 mt-2 w-72 rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs text-gray-200 opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
+              <div className="absolute right-0 z-50 mt-2 w-72 rounded-lg border border-gray-700 p-3 text-xs text-gray-200 opacity-0 shadow-xl transition-opacity duration-200 group-hover:opacity-100" style={{ backgroundColor: '#111827' }}>
                 <p className="font-semibold text-yellow-300 mb-1">Comfort scoring</p>
                 <p>Score = 100 - (|temp-22|*2 + max(0, humidity-50)*0.2 + UV*2 + wind*1.5)</p>
                 <p className="mt-2 font-semibold text-yellow-300">Normalization</p>
@@ -309,7 +309,7 @@ export default function DataPanel({ location, selectedCity = 'New York', setSele
               >
                 <Info className="w-4 h-4" />
               </button>
-              <div className="absolute left-0 mt-2 w-72 rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs text-gray-200 opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
+              <div className="absolute left-0 z-50 mt-2 w-72 rounded-lg border border-gray-700 p-3 text-xs text-gray-200 opacity-0 shadow-xl transition-opacity duration-200 group-hover:opacity-100" style={{ backgroundColor: '#111827' }}>
                 <p className="font-semibold text-green-300 mb-1">7-day comfort</p>
                 <p>Daily comfort uses avg temp from max/min, UV max, humidity 55, wind 4 with the same formula.</p>
                 <p className="mt-2 font-semibold text-green-300">Normalization</p>
