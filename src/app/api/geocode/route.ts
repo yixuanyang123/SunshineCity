@@ -15,7 +15,7 @@ export async function POST(request: Request) {
       q: query,
       format: 'json',
       addressdetails: '1',
-      limit: '6',
+      limit: '10',
     })
 
     if (typeof viewbox === 'string' && viewbox.trim()) {

@@ -25,9 +25,10 @@ export interface LeafletMapProps {
   selectedLocation: string | null
   onLocationClick: (location: MockLocation) => void
   onSelect: (lat: number, lng: number) => void
-  routes: Route[]                     
-  selectedRouteId: string | null     
-  onRouteSelect: (routeId: string) => void 
+  routes: Route[]
+  selectedRouteId: string | null
+  optimalRouteId: string | null
+  onRouteSelect: (routeId: string) => void
 }
 
 export default function LeafletMap({
@@ -42,9 +43,10 @@ export default function LeafletMap({
   selectedLocation,
   onLocationClick,
   onSelect,
-  routes,              
-  selectedRouteId,     
-  onRouteSelect,       
+  routes,
+  selectedRouteId,
+  optimalRouteId,
+  onRouteSelect,
 }: LeafletMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const setRef = (el: HTMLDivElement | null) => {
@@ -55,6 +57,7 @@ export default function LeafletMap({
   const layerRef = useRef<L.TileLayer | null>(null)
   const markersRef = useRef<Map<string, L.CircleMarker>>(new Map())
   const routeLayersRef = useRef<Map<string, L.Polyline>>(new Map())
+  const optimalLabelRef = useRef<L.Marker | null>(null)
 
 
   // Initialize map once
@@ -231,46 +234,60 @@ export default function LeafletMap({
     const MIN = 30   // cool threshold
     const MAX = 85   // hot threshold
 
-    // Clamp value
     const clamped = Math.min(Math.max(sunExposure, MIN), MAX)
-
     const ratio = (clamped - MIN) / (MAX - MIN)
 
-    // Blue (240) → Red (0)
+    // Blue (240) → Red (0); green is around 120. 100% saturation so routes are vivid.
     const hue = 240 - ratio * 240
+    const isGreen = hue >= 85 && hue <= 155
+    const lightness = isGreen ? 32 : 52
 
-    return `hsl(${hue}, 100%, 50%)`
+    return `hsl(${hue}, 100%, ${lightness}%)`
   }
-  //for multi routes display, need to clear old route layers and add all routes, with selected one highlighted
+  // Multi-route display: clear old layers, draw routes, add "Optimal" label
   useEffect(() => {
-  const map = mapRef.current
-  if (!map) return
+    const map = mapRef.current
+    if (!map) return
 
-  // Clear old route layers
-  routeLayersRef.current.forEach((polyline) => {
-    map.removeLayer(polyline)
-  })
-  routeLayersRef.current.clear()
+    routeLayersRef.current.forEach((polyline) => map.removeLayer(polyline))
+    routeLayersRef.current.clear()
 
-  // Add all routes
-  routes.forEach((route) => {
-    const latLngs = route.points.map(p => [p.lat, p.lng] as [number, number])
+    if (optimalLabelRef.current) {
+      map.removeLayer(optimalLabelRef.current)
+      optimalLabelRef.current = null
+    }
 
-    const polyline = L.polyline(latLngs, {
-      color: getRouteColor(route.sunExposure),
-      weight: selectedRouteId === route.id ? 7 : 4,
-      opacity: selectedRouteId === route.id ? 1 : 0.5,
+    routes.forEach((route) => {
+      const latLngs = route.points.map((p) => [p.lat, p.lng] as [number, number])
+      const hue = 240 - ((Math.min(Math.max(route.sunExposure, 30), 85) - 30) / 55) * 240
+      const isGreen = hue >= 85 && hue <= 155
+      const isSelected = selectedRouteId === route.id
+      const polyline = L.polyline(latLngs, {
+        color: getRouteColor(route.sunExposure),
+        weight: isSelected ? 7 : isGreen ? 5.5 : 4,
+        opacity: 1,
+      })
+      polyline.on('click', () => onRouteSelect(route.id))
+      polyline.addTo(map)
+      routeLayersRef.current.set(route.id, polyline)
     })
 
-    polyline.on('click', () => {
-      onRouteSelect(route.id)
-    })
-
-    polyline.addTo(map)
-    routeLayersRef.current.set(route.id, polyline)
-  })
-
-}, [routes, selectedRouteId, onRouteSelect])
+    if (optimalRouteId && routes.length > 0) {
+      const optimal = routes.find((r) => r.id === optimalRouteId)
+      if (optimal && optimal.points.length > 0) {
+        const mid = Math.floor(optimal.points.length / 2)
+        const [lat, lng] = [optimal.points[mid].lat, optimal.points[mid].lng]
+        const icon = L.divIcon({
+          className: 'optimal-route-label',
+          html: '<span style="display:inline-block;padding:2px 8px;background:#111;color:#fbbf24;font-size:11px;font-weight:700;border-radius:4px;white-space:nowrap;border:1px solid #fbbf24;">Optimal</span>',
+          iconSize: [56, 28],
+          iconAnchor: [28, 14],
+        })
+        const marker = L.marker([lat, lng], { icon }).addTo(map)
+        optimalLabelRef.current = marker
+      }
+    }
+  }, [routes, selectedRouteId, optimalRouteId, onRouteSelect])
 
 
   return (

@@ -25,45 +25,26 @@ interface MapViewProps {
 
 const CITY_DATA: Record<
   string,
-  { locations: { name: string; lat: number; lng: number; comfort: number }[]; bbox: { minLat: number; maxLat: number; minLng: number; maxLng: number } }
+  { locations: { name: string; lat: number; lng: number; comfort: number; address?: string }[]; bbox: { minLat: number; maxLat: number; minLng: number; maxLng: number } }
 > = {
   'New York': {
-    locations: [
-      { name: 'Central Park', lat: 40.785, lng: -73.968, comfort: 85 },
-      { name: 'Downtown Plaza', lat: 40.758, lng: -73.985, comfort: 72 },
-      { name: 'Riverside Walk', lat: 40.791, lng: -73.972, comfort: 92 },
-      { name: 'Market District', lat: 40.745, lng: -73.99, comfort: 65 },
-      { name: 'Tech Hub', lat: 40.768, lng: -73.98, comfort: 78 },
-    ],
+    locations: [],
     bbox: { minLat: 40.70, maxLat: 40.80, minLng: -74.0, maxLng: -73.95 },
   },
   'Los Angeles': {
-    locations: [
-      { name: 'Griffith Park', lat: 34.136, lng: -118.294, comfort: 78 },
-      { name: 'Santa Monica Pier', lat: 34.009, lng: -118.497, comfort: 82 },
-      { name: 'Downtown LA', lat: 34.040, lng: -118.246, comfort: 68 },
-    ],
+    locations: [],
     bbox: { minLat: 33.9, maxLat: 34.3, minLng: -118.6, maxLng: -118.1 },
   },
   Boston: {
-    locations: [
-      { name: 'Boston Common', lat: 42.355, lng: -71.065, comfort: 80 },
-      { name: 'Cambridge Square', lat: 42.373, lng: -71.119, comfort: 74 },
-    ],
+    locations: [],
     bbox: { minLat: 42.34, maxLat: 42.38, minLng: -71.14, maxLng: -71.05 },
   },
   Miami: {
-    locations: [
-      { name: 'South Beach', lat: 25.790, lng: -80.130, comfort: 86 },
-      { name: 'Downtown Miami', lat: 25.774, lng: -80.193, comfort: 70 },
-    ],
+    locations: [],
     bbox: { minLat: 25.72, maxLat: 25.82, minLng: -80.25, maxLng: -80.05 },
   },
   'San Diego': {
-    locations: [
-      { name: 'Balboa Park', lat: 32.734, lng: -117.144, comfort: 84 },
-      { name: 'Gaslamp Quarter', lat: 32.711, lng: -117.161, comfort: 73 },
-    ],
+    locations: [],
     bbox: { minLat: 32.70, maxLat: 32.75, minLng: -117.20, maxLng: -117.12 },
   },
 }
@@ -96,8 +77,9 @@ export default function MapView({
   const [hour, setHour] = useState<number>(new Date().getHours());
   const [minute, setMinute] = useState<number>(Math.round(new Date().getMinutes() / 10) * 10);
 
-  const [routes, setRoutes] = useState<Route[]>([]) //stores all routes
+  const [routes, setRoutes] = useState<Route[]>([])
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null)
+  const [routeLoading, setRouteLoading] = useState(false)
   const [routeSummary, setRouteSummary] = useState<{
     distance: number
     duration: number
@@ -142,6 +124,10 @@ export default function MapView({
   const [isSearchingEnd, setIsSearchingEnd] = useState(false)
   const startSearchTokenRef = useRef(0)
   const endSearchTokenRef = useRef(0)
+  const startInputRef = useRef<HTMLInputElement>(null)
+  const endInputRef = useRef<HTMLInputElement>(null)
+  const justClosedRef = useRef<'start' | 'end' | null>(null)
+  const focusSinkRef = useRef<HTMLDivElement>(null)
   const [searchMetro, setSearchMetro] = useState(false)
 
   // Clear search results when entering selection mode
@@ -152,7 +138,9 @@ export default function MapView({
     }
   }, [selectionMode])
 
-  const buildViewbox = () => `${minLng},${maxLat},${maxLng},${minLat}`
+  // Nominatim viewbox: minlon,minlat,maxlon,maxlat. When searchMetro is OFF, restrict to current city.
+  const buildViewbox = () => `${minLng},${minLat},${maxLng},${maxLat}`
+  const cityCenter = { lat: (minLat + maxLat) / 2, lng: (minLng + maxLng) / 2 }
   const isLatLngQuery = (value: string) => /^-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?$/.test(value)
   const MIN_QUERY_LEN = 2
   const SEARCH_DEBOUNCE_MS = 200
@@ -187,6 +175,38 @@ export default function MapView({
     })
   }
 
+  const mergePartialMatchFromCity = (query: string, apiResults: Location[]): Location[] => {
+    const q = query.trim().toLowerCase()
+    if (!q) return apiResults
+    const fromCity = mockLocations.filter(
+      (m) =>
+        m.name.toLowerCase().includes(q) ||
+        m.name.toLowerCase().split(/\s+/).some((w) => w.startsWith(q) || q.startsWith(w))
+    )
+    const seenIds = new Set(apiResults.map((r) => r.id))
+    const seenNames = new Set(apiResults.map((r) => r.name.trim().toLowerCase()))
+    const combined = [...apiResults]
+    for (const m of fromCity) {
+      const nameKey = m.name.trim().toLowerCase()
+      if (seenIds.has(m.name) || seenNames.has(nameKey)) continue
+      seenIds.add(m.name)
+      seenNames.add(nameKey)
+      combined.push({
+        id: m.name,
+        name: m.name,
+        lat: m.lat,
+        lng: m.lng,
+        address: m.address ?? `${m.name}, ${selectedCity}`,
+      })
+    }
+    return combined
+  }
+
+  const sortByDistance = (list: Location[], ref: { lat: number; lng: number }) => {
+    const refLoc = { ...ref, id: '', name: '' } as Location
+    return [...list].sort((a, b) => getDistanceKm(refLoc, a) - getDistanceKm(refLoc, b))
+  }
+
   // Update search results (OpenStreetMap landmarks)
   useEffect(() => {
     const query = startSearchQuery.trim()
@@ -194,6 +214,10 @@ export default function MapView({
       setStartSearchResults([])
       setShowStartResults(false)
       setIsSearchingStart(false)
+      return
+    }
+    if (startPoint && query === startPoint.name) {
+      setShowStartResults(false)
       return
     }
 
@@ -204,12 +228,16 @@ export default function MapView({
 
     const timer = setTimeout(async () => {
       try {
-        const results = await fetchLandmarks(query, controller.signal)
+        const apiResults = await fetchLandmarks(query, controller.signal)
         if (token !== startSearchTokenRef.current) return
-        setStartSearchResults(results)
+        const merged = mergePartialMatchFromCity(query, apiResults)
+        const ref = endPoint ?? cityCenter
+        setStartSearchResults(sortByDistance(merged, ref))
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
-          setStartSearchResults([])
+          const merged = mergePartialMatchFromCity(query, [])
+          const ref = endPoint ?? cityCenter
+          setStartSearchResults(sortByDistance(merged, ref))
         }
       } finally {
         if (token === startSearchTokenRef.current) {
@@ -222,7 +250,7 @@ export default function MapView({
       controller.abort()
       clearTimeout(timer)
     }
-  }, [startSearchQuery, selectedCity, selectionMode, searchMetro])
+  }, [startSearchQuery, selectedCity, selectionMode, searchMetro, endPoint, startPoint])
 
   useEffect(() => {
     const query = endSearchQuery.trim()
@@ -230,6 +258,10 @@ export default function MapView({
       setEndSearchResults([])
       setShowEndResults(false)
       setIsSearchingEnd(false)
+      return
+    }
+    if (endPoint && query === endPoint.name) {
+      setShowEndResults(false)
       return
     }
 
@@ -240,12 +272,16 @@ export default function MapView({
 
     const timer = setTimeout(async () => {
       try {
-        const results = await fetchLandmarks(query, controller.signal)
+        const apiResults = await fetchLandmarks(query, controller.signal)
         if (token !== endSearchTokenRef.current) return
-        setEndSearchResults(results)
+        const merged = mergePartialMatchFromCity(query, apiResults)
+        const ref = startPoint ?? cityCenter
+        setEndSearchResults(sortByDistance(merged, ref))
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
-          setEndSearchResults([])
+          const merged = mergePartialMatchFromCity(query, [])
+          const ref = startPoint ?? cityCenter
+          setEndSearchResults(sortByDistance(merged, ref))
         }
       } finally {
         if (token === endSearchTokenRef.current) {
@@ -258,7 +294,7 @@ export default function MapView({
       controller.abort()
       clearTimeout(timer)
     }
-  }, [endSearchQuery, selectedCity, selectionMode, searchMetro])
+  }, [endSearchQuery, selectedCity, selectionMode, searchMetro, startPoint, endPoint])
 
   const handleLocationClick = (location: (typeof mockLocations)[0]) => {
     setSelectedLocation(location.name)
@@ -318,17 +354,24 @@ export default function MapView({
   }
 
   const handleSearchResultClick = (location: Location, type: 'start' | 'end') => {
+    focusSinkRef.current?.focus()
+    justClosedRef.current = type
+    setShowStartResults(false)
+    setShowEndResults(false)
     if (type === 'start') {
       if (!validateDistance(location, endPoint)) return
       setStartPoint(location)
       setStartSearchQuery(location.name)
-      setShowStartResults(false)
+      startInputRef.current?.blur()
     } else {
       if (!validateDistance(startPoint, location)) return
       setEndPoint(location)
       setEndSearchQuery(location.name)
-      setShowEndResults(false)
+      endInputRef.current?.blur()
     }
+    setTimeout(() => {
+      justClosedRef.current = null
+    }, 350)
   }
 
   const clearStartPoint = () => {
@@ -343,33 +386,65 @@ export default function MapView({
     setDistanceError(null)
   }
 
-  const handleFindRoute = () => {
+  const handleFindRoute = async () => {
     if (!validateDistance(startPoint, endPoint)) return
     if (startPoint && endPoint && onRouteRequest) {
       onRouteRequest(startPoint, endPoint)
     }
-    if (startPoint && endPoint) {
-      const departureDate = new Date();
-      departureDate.setHours(hour);
-      departureDate.setMinutes(minute);
-      departureDate.setSeconds(0);
+    if (!startPoint || !endPoint) return
 
-      const nowIso = departureDate.toISOString()
-      const plan = mockRoutePlan(startPoint, endPoint, travelMode, nowIso, lightMode)
+    const departureDate = new Date()
+    departureDate.setHours(hour)
+    departureDate.setMinutes(minute)
+    departureDate.setSeconds(0)
+    const nowIso = departureDate.toISOString()
 
-      setRoutes(plan.routes)
-
-      const defaultRoute = plan.routes[0]
-      setSelectedRouteId(defaultRoute.id)
-
-      setRouteSummary({
-        distance: defaultRoute.distance,
-        duration: defaultRoute.duration,
-        sunExposure: defaultRoute.sunExposure,
-        color: defaultRoute.color,
+    setRouteLoading(true)
+    try {
+      const res = await fetch('/api/route', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          startLat: startPoint.lat,
+          startLng: startPoint.lng,
+          endLat: endPoint.lat,
+          endLng: endPoint.lng,
+          mode: travelMode,
+        }),
       })
+      const data = await res.json()
 
+      if (res.ok && data.routes?.length) {
+        const sorted = [...data.routes].sort((a, b) =>
+          lightMode === 'sun' ? b.sunExposure - a.sunExposure : a.sunExposure - b.sunExposure
+        )
+        setRoutes(sorted)
+        const defaultRoute = sorted[0]
+        setSelectedRouteId(defaultRoute.id)
+        setRouteSummary({
+          distance: defaultRoute.distance,
+          duration: defaultRoute.duration,
+          sunExposure: defaultRoute.sunExposure,
+          color: defaultRoute.color,
+        })
+        return
+      }
+    } catch (_) {
+      // fallback to mock
+    } finally {
+      setRouteLoading(false)
     }
+
+    const plan = mockRoutePlan(startPoint, endPoint, travelMode, nowIso, lightMode)
+    setRoutes(plan.routes)
+    const defaultRoute = plan.routes[0]
+    setSelectedRouteId(defaultRoute.id)
+    setRouteSummary({
+      distance: defaultRoute.distance,
+      duration: defaultRoute.duration,
+      sunExposure: defaultRoute.sunExposure,
+      color: defaultRoute.color,
+    })
   }
 
   const getDefaultSpeed = () => {
@@ -598,6 +673,9 @@ const getLightDefault = () => {
             </button>
           </div>
 
+          {/* Focus sink: after selecting from dropdown, focus moves here so the other input doesn't open its list */}
+          <div ref={focusSinkRef} tabIndex={-1} className="w-0 h-0 overflow-hidden opacity-0 pointer-events-none" aria-hidden />
+
           {/* Start Point Selection */}
           <div>
             <label className="text-xs text-gray-300 flex items-center gap-2 mb-1">
@@ -609,10 +687,15 @@ const getLightDefault = () => {
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
+                    ref={startInputRef}
                     type="text"
                     value={startSearchQuery}
-                    onChange={(e) => setStartSearchQuery(e.target.value)}
-                    onFocus={() => setShowStartResults(true)}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      setStartSearchQuery(v)
+                      if (v.trim().length >= MIN_QUERY_LEN) setShowStartResults(true)
+                      else setShowStartResults(false)
+                    }}
                     placeholder="Search or click map..."
                     className="w-full pl-9 pr-9 py-1.5 bg-gray-800 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-green-500"
                   />
@@ -649,6 +732,8 @@ const getLightDefault = () => {
                   {!isSearchingStart && startSearchResults.map((location) => (
                     <button
                       key={location.id}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => handleSearchResultClick(location, 'start')}
                       className="w-full text-left px-2 py-1.5 hover:bg-gray-700 text-white text-xs border-b border-gray-700 last:border-b-0"
                     >
@@ -674,10 +759,15 @@ const getLightDefault = () => {
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
+                    ref={endInputRef}
                     type="text"
                     value={endSearchQuery}
-                    onChange={(e) => setEndSearchQuery(e.target.value)}
-                    onFocus={() => setShowEndResults(true)}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      setEndSearchQuery(v)
+                      if (v.trim().length >= MIN_QUERY_LEN) setShowEndResults(true)
+                      else setShowEndResults(false)
+                    }}
                     placeholder="Search or click map..."
                     className="w-full pl-9 pr-9 py-1.5 bg-gray-800 border border-gray-600 rounded text-white text-xs focus:outline-none focus:border-red-500"
                   />
@@ -714,6 +804,8 @@ const getLightDefault = () => {
                   {!isSearchingEnd && endSearchResults.map((location) => (
                     <button
                       key={location.id}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => handleSearchResultClick(location, 'end')}
                       className="w-full text-left px-2 py-1.5 hover:bg-gray-700 text-white text-xs border-b border-gray-700 last:border-b-0"
                     >
@@ -731,10 +823,12 @@ const getLightDefault = () => {
         {/* Find Route Button */}
         {startPoint && endPoint && (
           <button
+            type="button"
             onClick={handleFindRoute}
-            className="mt-2 w-full py-1.5 bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-semibold rounded text-xs transition-all"
+            disabled={routeLoading}
+            className="mt-2 w-full py-1.5 bg-yellow-500 hover:bg-yellow-600 disabled:opacity-60 disabled:cursor-not-allowed text-gray-900 font-semibold rounded text-xs transition-all"
           >
-            Find Optimal Route
+            {routeLoading ? 'Loading routes…' : 'Find Optimal Route'}
           </button>
         )}
 
@@ -860,6 +954,7 @@ const getLightDefault = () => {
                 onSelect={handleMapSelect}
                 routes={routes}
                 selectedRouteId={selectedRouteId}
+                optimalRouteId={routes[0]?.id ?? null}
                 onRouteSelect={handleRouteSelect}
               />
             )}

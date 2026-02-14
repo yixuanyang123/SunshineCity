@@ -59,3 +59,8 @@ body {
 .leaflet-tile {
   opacity: 1 !important;
 }
+
+.optimal-route-label {
+  background: transparent !important;
+  border: none !important;
+}
