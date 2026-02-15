@@ -123,6 +123,7 @@ export default function LeafletMap({
   // Handle map click for point selection - read selectionModeRef so this effect never depends on selectionMode (avoids re-run → tiles stay)
   useEffect(() => {
     if (!mapRef.current) return
+    const map = mapRef.current
 
     const handleClick = (e: L.LeafletMouseEvent) => {
       if (selectionModeRef.current) {
@@ -130,20 +131,18 @@ export default function LeafletMap({
       }
     }
 
-    mapRef.current.on('click', handleClick)
+    map.on('click', handleClick)
 
     return () => {
-      if (mapRef.current) {
-        mapRef.current.off('click', handleClick)
-      }
+      map.off('click', handleClick)
     }
-  }, [selectionModeRef, onSelect])
+  }, [onSelect, selectionModeRef])
 
-  // Update map view when center/zoom changes
-  useEffect(() => {
-    if (!mapRef.current) return
-    mapRef.current.setView(mapCenter, mapZoom, { animate: true })
-  }, [mapCenter, mapZoom])
+  // // Update map view when center/zoom changes
+  // useEffect(() => {
+  //   if (!mapRef.current) return
+  //   mapRef.current.setView(mapCenter, mapZoom, { animate: true })
+  // }, [mapCenter, mapZoom])
 
   // Handle tile layer changes
   useEffect(() => {
@@ -244,6 +243,8 @@ export default function LeafletMap({
 
     return `hsl(${hue}, 100%, ${lightness}%)`
   }
+  
+  
   // Multi-route display: clear old layers, draw routes, add "Optimal" label
   useEffect(() => {
     const map = mapRef.current
@@ -288,6 +289,8 @@ export default function LeafletMap({
       }
     }
   }, [routes, selectedRouteId, optimalRouteId, onRouteSelect])
+
+  
 
 
   return (

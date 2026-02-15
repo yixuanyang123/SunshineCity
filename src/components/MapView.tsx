@@ -138,6 +138,13 @@ export default function MapView({
     }
   }, [selectionMode])
 
+  //Clear routes when start or end point changes
+  useEffect(() => {
+  setRoutes([])
+  setSelectedRouteId(null)
+  setRouteSummary(null)
+}, [startPoint?.id, endPoint?.id])
+
   // Nominatim viewbox: minlon,minlat,maxlon,maxlat. When searchMetro is OFF, restrict to current city.
   const buildViewbox = () => `${minLng},${minLat},${maxLng},${maxLat}`
   const cityCenter = { lat: (minLat + maxLat) / 2, lng: (minLng + maxLng) / 2 }
@@ -867,9 +874,9 @@ const getLightDefault = () => {
 
       {/* Scale Labels */}
       <div className="flex justify-between text-[9px] text-gray-500">
-        <span>30% Cool</span>
+        <span>&lt; 30% Cool</span>
         <span>~60%</span>
-        <span>85% Hot</span>
+        <span>&gt; 85% Hot</span>
       </div>
     </div>
 
