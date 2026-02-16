@@ -283,9 +283,33 @@ export default function LeafletMap({
 
     if (optimalRouteId && routes.length > 0) {
       const optimal = routes.find((r) => r.id === optimalRouteId)
+      const others = routes.filter((r) => r.id !== optimalRouteId)
       if (optimal && optimal.points.length > 0) {
-        const mid = Math.floor(optimal.points.length / 2)
-        const [lat, lng] = [optimal.points[mid].lat, optimal.points[mid].lng]
+        let bestIdx = Math.floor(optimal.points.length / 2)
+        if (others.length > 0) {
+          const dist = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) =>
+            Math.hypot(a.lat - b.lat, a.lng - b.lng)
+          const minDistToOthers = (p: { lat: number; lng: number }) => {
+            let d = Infinity
+            for (const route of others) {
+              for (const q of route.points) {
+                const t = dist(p, q)
+                if (t < d) d = t
+              }
+            }
+            return d
+          }
+          const step = Math.max(1, Math.floor(optimal.points.length / 20))
+          let bestScore = 0
+          for (let i = 0; i < optimal.points.length; i += step) {
+            const score = minDistToOthers(optimal.points[i])
+            if (score > bestScore) {
+              bestScore = score
+              bestIdx = i
+            }
+          }
+        }
+        const [lat, lng] = [optimal.points[bestIdx].lat, optimal.points[bestIdx].lng]
         const icon = L.divIcon({
           className: 'optimal-route-label',
           html: '<span style="display:inline-block;padding:2px 8px;background:#111;color:#fbbf24;font-size:11px;font-weight:700;border-radius:4px;white-space:nowrap;border:1px solid #fbbf24;">Optimal</span>',
