@@ -75,7 +75,7 @@ export default function MapView({
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
   const [travelMode, setTravelMode] = useState<'walking' | 'cycling'>('walking')
   const [hour, setHour] = useState<number>(new Date().getHours());
-  const [minute, setMinute] = useState<number>(Math.round(new Date().getMinutes() / 10) * 10);
+  const [minute, setMinute] = useState<number>(new Date().getMinutes());
 
   const [routes, setRoutes] = useState<Route[]>([])
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null)
@@ -490,12 +490,7 @@ const getLightDefault = () => {
   const setStartTimeToNow = () => {
     const now = new Date()
     let currentHours = now.getHours();
-    let currentMinutes = Math.round(now.getMinutes() / 10) * 10
-
-    if (currentMinutes === 60) {
-    currentMinutes = 0;
-    currentHours = (currentHours + 1) % 24;
-    }
+    let currentMinutes = now.getMinutes()
 
     setHour(currentHours)
     setMinute(currentMinutes)
@@ -653,10 +648,17 @@ const getLightDefault = () => {
                   ))}
               </select>
               <span className="text-gray-400">:</span>
-              <select value={minute} onChange={(e) => setMinute(parseInt(e.target.value))} className="flex-1 bg-gray-800 text-white text-xs p-1 rounded">
-                {Array.from({ length: 6 }, (_, i) => (<option key={i} value={i * 10}>{String(i * 10).padStart(2, '0')}</option>
-                  ))}
-              </select>
+              <input
+                type="number"
+                min={0}
+                max={59}
+                value={minute}
+                onChange={(e) => {
+                  const v = e.target.value === '' ? 0 : parseInt(e.target.value, 10)
+                  if (!Number.isNaN(v)) setMinute(Math.min(59, Math.max(0, v)))
+                }}
+                className="flex-1 w-12 bg-gray-800 text-white text-xs p-1 rounded border border-gray-600 focus:border-yellow-500 focus:outline-none"
+              />
               <button onClick={setStartTimeToNow} className="ml-2 px-2 py-1.5 bg-gray-700 text-gray-300 text-xs rounded hover:bg-gray-600 transition-all">Set to Current Time</button>
               </div>
 

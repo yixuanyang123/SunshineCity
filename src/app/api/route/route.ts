@@ -74,13 +74,17 @@ export async function POST(request: Request) {
       )
     }
 
-    const params = new URLSearchParams({
+    const baseParams = new URLSearchParams({
       overview: 'full',
       geometries: 'geojson',
-      alternatives: '3',
     })
 
-    const fetchRoutes = async (coords: { lng: number; lat: number }[]): Promise<OSRMRoute[]> => {
+    const fetchRoutes = async (
+      coords: { lng: number; lat: number }[],
+      alternatives = 0
+    ): Promise<OSRMRoute[]> => {
+      const params = new URLSearchParams(baseParams)
+      if (alternatives > 0) params.set('alternatives', String(alternatives))
       const coordStr = coordsToOsrm(coords)
       for (const profile of getProfilesToTry(mode)) {
         const url = `${OSRM_BASE}/${profile}/${coordStr}?${params.toString()}`
@@ -91,49 +95,92 @@ export async function POST(request: Request) {
       return []
     }
 
-    let allRoutes: OSRMRoute[] = await fetchRoutes([
-      { lng: startLng, lat: startLat },
-      { lng: endLng, lat: endLat },
-    ])
+    const direct = await fetchRoutes(
+      [
+        { lng: startLng, lat: startLat },
+        { lng: endLng, lat: endLat },
+      ],
+      2
+    )
 
-    if (allRoutes.length === 0) {
+    if (direct.length === 0) {
       return NextResponse.json({ error: 'No route found' }, { status: 400 })
     }
 
-    // If we got fewer than 3 routes, try via-points to get alternative paths
-    if (allRoutes.length < 3) {
-      const midLat = (startLat + endLat) / 2
-      const midLng = (startLng + endLng) / 2
-      const offset = 0.008
-      const viaCandidates = [
-        [{ lng: midLng + offset, lat: midLat + offset }],
-        [{ lng: midLng - offset, lat: midLat - offset }],
-        [{ lng: midLng + offset, lat: midLat - offset }],
-        [{ lng: midLng - offset, lat: midLat + offset }],
-      ]
-      const seenDist = new Set<number>()
-      allRoutes.forEach((r) => seenDist.add(Math.round(r.distance / 50)))
-      for (const [viaLng, viaLat] of viaCandidates.map((v) => [v[0].lng, v[0].lat])) {
-        if (allRoutes.length >= 3) break
-        const viaRoutes = await fetchRoutes(
-          [
-            { lng: startLng, lat: startLat },
-            { lng: viaLng, lat: viaLat },
-            { lng: endLng, lat: endLat },
-          ]
-        )
-        for (const r of viaRoutes) {
-          const key = Math.round(r.distance / 50)
-          if (seenDist.has(key)) continue
-          seenDist.add(key)
-          allRoutes.push(r)
-          if (allRoutes.length >= 3) break
-        }
+    let allRoutes: OSRMRoute[] = [...direct].sort((a, b) => a.distance - b.distance)
+
+    const addViaRoute = async (t: number, offsetScale: number): Promise<OSRMRoute | null> => {
+      const lat = startLat + (endLat - startLat) * t
+      const lng = startLng + (endLng - startLng) * t
+      const perpLat = (endLng - startLng) * 0.0006 * offsetScale
+      const perpLng = -(endLat - startLat) * 0.0006 * offsetScale
+      const routes = await fetchRoutes(
+        [
+          { lng: startLng, lat: startLat },
+          { lng: lng + perpLng, lat: lat + perpLat },
+          { lng: endLng, lat: endLat },
+        ],
+        0
+      )
+      if (!routes.length) return null
+      return routes.reduce((a, b) => (a.distance < b.distance ? a : b))
+    }
+
+    const isNewRoute = (r: OSRMRoute) =>
+      !allRoutes.some((existing) => Math.abs(existing.distance - r.distance) < 20)
+
+    const viaOffsets = [
+      [0.5, 1],
+      [0.5, -1],
+      [0.4, 2],
+      [0.6, -2],
+      [0.33, 1],
+      [0.66, -1],
+      [0.5, 3],
+      [0.5, -3],
+    ]
+    for (const [t, scale] of viaOffsets) {
+      if (allRoutes.length >= 3) break
+      const r = await addViaRoute(t, scale)
+      if (r && isNewRoute(r)) {
+        allRoutes.push(r)
+        allRoutes.sort((a, b) => a.distance - b.distance)
       }
     }
 
+    if (allRoutes.length < 3) {
+      const addViaLarger = async (t: number, scale: number): Promise<OSRMRoute | null> => {
+        const lat = startLat + (endLat - startLat) * t
+        const lng = startLng + (endLng - startLng) * t
+        const perpLat = (endLng - startLng) * 0.002 * scale
+        const perpLng = -(endLat - startLat) * 0.002 * scale
+        const routes = await fetchRoutes(
+          [
+            { lng: startLng, lat: startLat },
+            { lng: lng + perpLng, lat: lat + perpLat },
+            { lng: endLng, lat: endLat },
+          ],
+          0
+        )
+        if (!routes.length) return null
+        return routes.reduce((a, b) => (a.distance < b.distance ? a : b))
+      }
+      const r2 = await addViaLarger(0.5, 1)
+      if (r2 && isNewRoute(r2)) allRoutes.push(r2)
+      if (allRoutes.length < 3) {
+        const r3 = await addViaLarger(0.5, -1)
+        if (r3 && isNewRoute(r3)) allRoutes.push(r3)
+      }
+      allRoutes.sort((a, b) => a.distance - b.distance)
+    }
+
+    while (allRoutes.length < 3 && allRoutes.length > 0) {
+      allRoutes.push(allRoutes[0])
+    }
+    allRoutes = allRoutes.slice(0, 3)
+
     const sunExposures = [85, 65, 45]
-    const routes: ApiRoute[] = allRoutes.slice(0, 3).map((r, i) => {
+    const routes: ApiRoute[] = allRoutes.map((r, i) => {
       const coords = r.geometry?.coordinates ?? []
       const points: RoutePoint[] = coords.map(([lng, lat]) => ({ lat, lng }))
       const distanceKm = Math.round((r.distance / 1000) * 100) / 100

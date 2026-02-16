@@ -55,7 +55,7 @@ export default function LeafletMap({
   }
   const mapRef = useRef<L.Map | null>(null)
   const layerRef = useRef<L.TileLayer | null>(null)
-  const markersRef = useRef<Map<string, L.CircleMarker>>(new Map())
+  const markersRef = useRef<Map<string, L.CircleMarker | L.Marker>>(new Map())
   const routeLayersRef = useRef<Map<string, L.Polyline>>(new Map())
   const optimalLabelRef = useRef<L.Marker | null>(null)
 
@@ -192,15 +192,23 @@ export default function LeafletMap({
       markersRef.current.set(`start-${startPoint.id}`, marker)
     }
 
-    // Add custom end point marker
+    // Add custom end point marker (pin icon)
     if (endPoint && !mockLocations.find((loc) => loc.name === endPoint.name)) {
-      const marker = L.circleMarker([endPoint.lat, endPoint.lng], {
-        color: '#EF4444',
-        weight: 3,
-        fillColor: '#EF4444',
-        fillOpacity: 0.9,
-        radius: 10,
+      const pinSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="32" height="48">
+        <defs><linearGradient id="pinGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:#ff6b6b"/>
+          <stop offset="100%" style="stop-color:#c92a2a"/>
+        </linearGradient></defs>
+        <path fill="url(#pinGrad)" stroke="#a61e1e" stroke-width="1" d="M12 0C6.5 0 2 5.4 2 12c0 9 10 24 10 24s10-15 10-24C22 5.4 17.5 0 12 0z"/>
+        <circle cx="12" cy="12" r="5" fill="#fff" fill-opacity="0.9"/>
+      </svg>`
+      const icon = L.divIcon({
+        className: 'end-pin-icon',
+        html: `<div style="display:inline-block;line-height:0;">${pinSvg}</div>`,
+        iconSize: [32, 48],
+        iconAnchor: [16, 48],
       })
+      const marker = L.marker([endPoint.lat, endPoint.lng], { icon })
       marker.bindPopup('<div class="text-xs font-semibold">End Point</div>')
       marker.addTo(map)
       markersRef.current.set(`end-${endPoint.id}`, marker)
