@@ -479,13 +479,7 @@ export default function MapView({
   return 'Winter';                                 // Dec - Feb
   };
 
-const getLightDefault = () => {
-  const season = getSeason(new Date())
-  if (season === 'Spring' || season === 'Winter') {
-    return 'sun'
-  }
-  return 'shade'
-}
+const getLightDefault = () => 'shade'
 
   const setStartTimeToNow = () => {
     const now = new Date()
@@ -633,7 +627,7 @@ const getLightDefault = () => {
                 </button>
               </div>
               <div className="mt-1 text-[10px] text-gray-400">
-                Default is {lightMode === 'sun' ? 'sunlight' : 'shade'} for {lightMode === 'sun' ? 'Spring/Winter' : 'Summer/Autumn'}
+                Default is shade
               </div>
             </div>
 
