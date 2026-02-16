@@ -479,7 +479,7 @@ export default function MapView({
   return 'Winter';                                 // Dec - Feb
   };
 
-const getLightDefault = () => 'shade'
+const getLightDefault = (): 'sun' | 'shade' => 'shade'
 
   const setStartTimeToNow = () => {
     const now = new Date()
