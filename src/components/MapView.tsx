@@ -455,7 +455,7 @@ export default function MapView({
   }
 
   const getDefaultSpeed = () => {
-    const baseSpeed = travelMode === 'walking' ? 5 : 15
+    const baseSpeed = travelMode === 'walking' ? 4.3 : 12
     if (!weather) return baseSpeed
 
     let factor = 1

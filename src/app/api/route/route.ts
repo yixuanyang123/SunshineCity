@@ -41,7 +41,7 @@ function coordsToOsrm(coords: { lng: number; lat: number }[]): string {
 
 function durationForMode(distanceMeters: number, mode: 'walking' | 'cycling'): number {
   const km = distanceMeters / 1000
-  const speedKmh = mode === 'walking' ? 5 : 15
+  const speedKmh = mode === 'walking' ? 4.3 : 12
   return Math.round((km / speedKmh) * 60) // minutes
 }
 

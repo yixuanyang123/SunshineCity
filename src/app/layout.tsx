@@ -7,6 +7,12 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Sunshine City - Urban Comfort Analysis',
   description: 'Advanced platform for analyzing pedestrian and cycling route comfort in urban environments',
+  icons: {
+    icon: [
+      { url: '/logo.png', sizes: '32x32' },
+      { url: '/logo.png', sizes: '48x48' },
+    ],
+  },
 }
 
 export default function RootLayout({
