@@ -1,6 +1,6 @@
-# Sunshine City - Urban Comfort Analysis Platform
+# Sunlight City - Urban Comfort Analysis Platform
 
-Sunshine City 是一个用于评估城市步行与骑行舒适度的前端演示平台。适合用于演示数据可视化、交互地图和实时指标展示。
+Sunlight City 是一个用于评估城市步行与骑行舒适度的前端演示平台。适合用于演示数据可视化、交互地图和实时指标展示。
 
 ## 🌟 功能特性
 

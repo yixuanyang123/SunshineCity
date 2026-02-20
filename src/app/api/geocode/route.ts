@@ -25,7 +25,7 @@ export async function POST(request: Request) {
 
     const res = await fetch(`${NOMINATIM_API}?${params.toString()}`, {
       headers: {
-        'User-Agent': 'SunshineCity/1.0 (contact: admin@sunshinecity.local)',
+        'User-Agent': 'SunlightCity/1.0 (contact: admin@sunlightcity.local)',
       },
     })
 

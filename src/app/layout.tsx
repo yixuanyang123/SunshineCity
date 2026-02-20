@@ -5,7 +5,7 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Sunshine City - Urban Comfort Analysis',
+  title: 'Sunlight City - Urban Comfort Analysis',
   description: 'Advanced platform for analyzing pedestrian and cycling route comfort in urban environments',
   icons: {
     icon: [

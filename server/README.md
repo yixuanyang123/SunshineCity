@@ -1,4 +1,4 @@
-Sunshine City backend
+Sunlight City backend
 
 - FastAPI application
 - Uses PostgreSQL (asyncpg)

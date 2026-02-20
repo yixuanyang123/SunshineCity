@@ -45,7 +45,7 @@ export default function Header() {
           </div>
           <div>
             <h1 className="text-[1.6rem] font-bold bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-500 bg-clip-text text-transparent">
-              Sunshine City
+              Sunlight City
             </h1>
             <p className="text-sm text-gray-300 font-medium">Urban Comfort Analysis Platform · By AEXUS</p>
           </div>
