@@ -1,3 +1,8 @@
 # Vercel serverless entry: /api and /api/
-# All /api/* routes are handled by corresponding api/*.py files; each exports the same FastAPI app.
+import os
+import sys
+# Ensure project root is on path so "server" can be imported
+_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _root not in sys.path:
+    sys.path.insert(0, _root)
 from server.main import app

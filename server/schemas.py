@@ -12,7 +12,7 @@ class UserOut(BaseModel):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # Pydantic v2 (was orm_mode in v1)
 
 class Token(BaseModel):
     access_token: str

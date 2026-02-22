@@ -35,9 +35,12 @@ app.include_router(auth_router)
 
 @app.on_event("startup")
 async def startup_event():
-    # create DB tables if not exist
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # Create DB tables if not exist. On Vercel/Supabase tables exist; if connection fails, skip (app still runs).
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    except Exception:
+        pass  # e.g. serverless cold start, no DB, or tables already exist; auth routes will use DB on first request
 
 @app.get("/")
 async def root():
