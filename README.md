@@ -58,6 +58,17 @@ npm run build
 npm start
 ```
 
+### 部署到 Vercel（前端 + 后端一体）
+项目已配置为在 Vercel 上同时运行 Next.js 与 FastAPI（`/api` 下的 Python 函数）。部署后需在 Vercel 项目设置中配置环境变量：
+
+**必填：**
+- `DATABASE_URL` — Supabase 连接串，格式：`postgresql+asyncpg://postgres:密码@db.xxx.supabase.co:5432/postgres?ssl=require`
+- `SECRET_KEY` — JWT 签名用密钥（生产环境请用强随机串）
+- `ALLOWED_ORIGINS` — 允许的 CORS 来源，多个用逗号分隔，例如：`https://你的项目.vercel.app,https://sunlight-city-blush.vercel.app`
+- `NEXT_PUBLIC_API_BASE` — 前端请求后端的地址，部署后填：`https://你的项目.vercel.app/api`（与当前站点同域即可）
+
+配置完成后重新部署，登录/注册会走 Vercel 上的 FastAPI，并连接 Supabase。
+
 ## 📁 项目结构
 
 ```
