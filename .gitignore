@@ -3,6 +3,7 @@ node_modules/
 *.log
 .env.local
 .env.*.local
+server/.env
 .DS_Store
 dist/
 build/

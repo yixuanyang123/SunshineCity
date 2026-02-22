@@ -3,36 +3,38 @@ Sunlight City backend
 - FastAPI application
 - Uses PostgreSQL (asyncpg)
 
+Database: Supabase (cloud)
+- The project database is hosted on **Supabase** (PostgreSQL in the cloud). Teammates can be invited to the same Supabase project to create tables, run SQL, and share data without running PostgreSQL locally.
+
 Requirements
 - Python 3.11+ (tested with 3.11)
-- Docker (for PostgreSQL 14 container)
+- Docker (optional, only if you want to run PostgreSQL locally instead of Supabase)
 - virtualenv or venv for Python dependency isolation
 
-Quick start
+Quick start (using Supabase)
+1. Get the Supabase database connection string from the project maintainer or from [Supabase Dashboard](https://supabase.com/dashboard) → your project → Settings → Database → Connection string (URI).
+2. Create `server/.env` with:
+   - `DATABASE_URL=postgresql+asyncpg://postgres:[YOUR-PASSWORD]@db.xxxx.supabase.co:5432/postgres?ssl=require`  
+     (Replace `[YOUR-PASSWORD]` and the host with your project’s values; use `ssl=require` for asyncpg.)
+   - `SECRET_KEY=your-secret-key-here-change-in-production`
+3. Create virtualenv and install dependencies (from project root):
+   python -m venv server/.venv   # or use existing .venv
+   source server/.venv/bin/activate   # On Windows: server\.venv\Scripts\activate
+   pip install -r server/requirements.txt
+4. Start the FastAPI server (from project root):
+   server/.venv/bin/python -m uvicorn server.main:app --host 0.0.0.0 --port 8000
+5. Verify: `curl http://localhost:8000/` should return `{"status":"ok"}`.
+
+Quick start (local Docker, optional)
 1. Start PostgreSQL 14 in Docker:
    docker run --name sunshine-db -e POSTGRES_PASSWORD=pass -e POSTGRES_DB=sunshine -p 5432:5432 -d postgres:14
+2. Create `server/.env` with `DATABASE_URL=postgresql+asyncpg://postgres:pass@localhost:5432/sunshine` and `SECRET_KEY=...`, then follow steps 3–5 in the Supabase quick start above (create venv, install deps, run uvicorn).
 
-2. Create server/.env file with these values:
-   DATABASE_URL=postgresql+asyncpg://postgres:pass@localhost:5432/sunshine
-   SECRET_KEY=your-secret-key-here-change-in-production
-
-3. Create virtualenv and install dependencies (from project root):
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   pip install -r server/requirements.txt
-
-4. Start the FastAPI server (from project root):
-   .venv/bin/python -m uvicorn server.main:app --reload --host 0.0.0.0 --port 8000
-
-5. Verify server is running:
-   curl http://localhost:8000/
-   # Should return: {"status":"ok"}
-
-Alternative: Local PostgreSQL
-If you prefer to use a local PostgreSQL installation instead of Docker:
+Alternative: Local PostgreSQL (no Docker)
+If you prefer to use a local PostgreSQL installation instead of Docker or Supabase:
 1. Install PostgreSQL 14+ locally and create a database named `sunshine`.
 2. Update `DATABASE_URL` in `server/.env` to match your local credentials.
-3. Follow steps 3-5 above.
+3. Follow steps 3–5 in the Supabase quick start above.
 
 What the server provides
 - POST /auth/signup { email, password } -> create user (password hashed with pbkdf2_sha256)
