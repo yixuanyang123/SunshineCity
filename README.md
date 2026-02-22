@@ -46,11 +46,22 @@ Sunlight City 是一个用于评估城市步行与骑行舒适度的前端演示
 npm install
 ```
 
-### 开发模式
-```bash
-npm run dev
-```
-访问 http://localhost:3000
+### 本地完整测试（前端 + 后端）
+需要同时跑后端 API 和前端，登录/注册和 trip 等功能才会可用。
+
+1. **后端**（在项目根目录开一个终端）：
+   ```bash
+   server/.venv/bin/python -m uvicorn server.main:app --host 0.0.0.0 --port 8000 --reload
+   ```
+   首次需先配置 `server/.env`（见 `server/README.md`），并创建虚拟环境：  
+   `python3 -m venv server/.venv` 与 `server/.venv/bin/pip install -r server/requirements.txt`。
+
+2. **前端**（另开一个终端）：
+   ```bash
+   npm run dev
+   ```
+
+3. 浏览器打开 http://localhost:3000，API 在 http://localhost:8000（文档：http://localhost:8000/docs）。
 
 ### 生产构建
 ```bash

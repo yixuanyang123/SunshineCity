@@ -93,6 +93,7 @@ async def login(user_in: schemas.UserCreate, db: AsyncSession = Depends(get_db))
     return {"access_token": access_token, "token_type": "bearer"}
 from fastapi.security import OAuth2PasswordBearer
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
     credentials_exception = HTTPException(
@@ -113,6 +114,26 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
         raise credentials_exception
     return user
 
+
+async def get_current_user_optional(
+    token: str | None = Depends(oauth2_scheme_optional),
+    db: AsyncSession = Depends(get_db),
+) -> models.User | None:
+    """Return current user if valid Bearer token; else None (for anonymous trip)."""
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            return None
+    except JWTError:
+        return None
+    q = select(models.User).where(models.User.email == email)
+    result = await db.execute(q)
+    return result.scalars().first()
+
+
 @router.get("/me", response_model=schemas.UserOut)
 async def me(current_user: models.User = Depends(get_current_user)):
-    return current_user
+    return schemas.UserOut(id=current_user.id, email=current_user.email, created_at=current_user.created_at)

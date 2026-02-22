@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from datetime import datetime
 
@@ -12,7 +12,7 @@ class UserOut(BaseModel):
     created_at: datetime
 
     class Config:
-        from_attributes = True  # Pydantic v2 (was orm_mode in v1)
+        from_attributes = True
 
 class Token(BaseModel):
     access_token: str
@@ -20,3 +20,29 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     email: Optional[str] = None
+
+
+# --- Trip (for Unity: origin/destination as lat-lng, departure as hour+minute) ---
+
+class LatLng(BaseModel):
+    lat: float
+    lng: float
+
+class DepartureTime(BaseModel):
+    hour: int = Field(..., ge=0, le=23)
+    minute: int = Field(..., ge=0, le=59)
+
+class TripCreate(BaseModel):
+    origin: LatLng
+    destination: LatLng
+    departure: DepartureTime
+    anonymous_id: Optional[str] = None  # required when no Bearer token
+
+class TripOut(BaseModel):
+    id: int
+    user_email: Optional[str] = None
+    anonymous_id: Optional[str] = None
+    origin: LatLng
+    destination: LatLng
+    departure: DepartureTime
+    created_at: datetime

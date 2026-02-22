@@ -6,6 +6,8 @@ import { mockRoutePlan } from '@/lib/mockData'
 import { Location, Route } from '@/lib/types'
 import dynamic from 'next/dynamic'
 
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
+
 // Keep dynamic + ssr:false so Leaflet (browser-only) never runs on server.
 // key="main-map" keeps identity stable; loading="lazy" may reduce remount risk.
 const LeafletMap = dynamic(() => import('./LeafletMap'), { ssr: false })
@@ -405,6 +407,31 @@ export default function MapView({
     departureDate.setMinutes(minute)
     departureDate.setSeconds(0)
     const nowIso = departureDate.toISOString()
+
+    // Save trip for Unity (origin, destination, departure). Logged in: Bearer; else anonymous_id.
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('sc_token')
+      const anonymousId = token ? null : (() => {
+        let id = localStorage.getItem('sc_anonymous_id')
+        if (!id) {
+          id = crypto.randomUUID?.() ?? `anon-${Date.now()}-${Math.random().toString(36).slice(2)}`
+          localStorage.setItem('sc_anonymous_id', id)
+        }
+        return id
+      })()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) headers.Authorization = `Bearer ${token}`
+      fetch(`${API_BASE}/trip`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          origin: { lat: startPoint.lat, lng: startPoint.lng },
+          destination: { lat: endPoint.lat, lng: endPoint.lng },
+          departure: { hour, minute },
+          ...(anonymousId ? { anonymous_id: anonymousId } : {}),
+        }),
+      }).catch(() => {}) // fire-and-forget; do not block route loading
+    }
 
     setRouteLoading(true)
     try {

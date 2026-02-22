@@ -4,16 +4,21 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 import os
 from .auth import router as auth_router
+from .trip import router as trip_router
 from .database import engine, Base
 import asyncio
 
 app = FastAPI(title="Sunshine City API")
 
-# CORS: allow local dev + Vercel deployment (set ALLOWED_ORIGINS in Vercel env)
-_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").strip().split(",")
+# CORS: always include localhost for local dev; add ALLOWED_ORIGINS for production (e.g. Vercel frontend URL)
+_local_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+_env_origins = [o.strip() for o in (os.getenv("ALLOWED_ORIGINS") or "").strip().split(",") if o.strip()]
+_origins = list(dict.fromkeys(_local_origins + _env_origins))  # dedupe, local first
+_origin_regex = r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"  # allow any port for localhost
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in _origins if o.strip()],
+    allow_origins=_origins,
+    allow_origin_regex=_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -32,6 +37,7 @@ class StripApiPathMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StripApiPathMiddleware)
 
 app.include_router(auth_router)
+app.include_router(trip_router)
 
 @app.on_event("startup")
 async def startup_event():
