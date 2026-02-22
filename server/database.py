@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.pool import NullPool
 import os
 from dotenv import load_dotenv
 from pathlib import Path
@@ -12,6 +13,11 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL is not set. Copy server/.env.example to server/.env and configure it.")
 
-engine = create_async_engine(DATABASE_URL, echo=False, future=True)
+# On Vercel/serverless (or Supabase), use NullPool so each request gets a fresh connection
+_engine_kw = {"echo": False, "future": True}
+if os.getenv("VERCEL") or "supabase.co" in (DATABASE_URL or ""):
+    _engine_kw["poolclass"] = NullPool
+
+engine = create_async_engine(DATABASE_URL, **_engine_kw)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 Base = declarative_base()

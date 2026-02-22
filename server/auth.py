@@ -67,9 +67,17 @@ async def signup(user_in: schemas.UserCreate, db: AsyncSession = Depends(get_db)
 
 @router.post("/login", response_model=schemas.Token)
 async def login(user_in: schemas.UserCreate, db: AsyncSession = Depends(get_db)):
-    q = select(models.User).where(models.User.email == user_in.email)
-    result = await db.execute(q)
-    user = result.scalars().first()
+    try:
+        q = select(models.User).where(models.User.email == user_in.email)
+        result = await db.execute(q)
+        user = result.scalars().first()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()  # so Vercel logs show the real error
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database temporarily unavailable. Please try again.",
+        ) from e
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     try:
