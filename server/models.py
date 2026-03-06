@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, Float, func
+from sqlalchemy.dialects.postgresql import JSONB
 from .database import Base
 
 class User(Base):
@@ -23,4 +24,21 @@ class Trip(Base):
     dest_lng = Column(Float, nullable=False)
     departure_hour = Column(Integer, nullable=False)   # 0-23
     departure_minute = Column(Integer, nullable=False)  # 0-59
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class OptimalRoute(Base):
+    """Stores optimal route from C++ algorithm for Unity/Web. One row per submission."""
+    __tablename__ = "optimal_routes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_email = Column(String(255), index=True, nullable=True)
+    anonymous_id = Column(String(255), index=True, nullable=True)
+    origin_lat = Column(Float, nullable=False)
+    origin_lng = Column(Float, nullable=False)
+    dest_lat = Column(Float, nullable=False)
+    dest_lng = Column(Float, nullable=False)
+    waypoints = Column(JSONB, nullable=False)  # list of {"lat": float, "lng": float}
+    total_distance_km = Column(Float, nullable=True)
+    total_time_minutes = Column(Float, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

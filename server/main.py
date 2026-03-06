@@ -5,6 +5,7 @@ from starlette.requests import Request
 import os
 from .auth import router as auth_router
 from .trip import router as trip_router
+from .optimal_route import router as optimal_route_router
 from .database import engine, Base
 import asyncio
 
@@ -38,6 +39,7 @@ app.add_middleware(StripApiPathMiddleware)
 
 app.include_router(auth_router)
 app.include_router(trip_router)
+app.include_router(optimal_route_router)
 
 @app.on_event("startup")
 async def startup_event():
